@@ -70,6 +70,7 @@ type R struct {
 	Distance  int    `json:"distance"`
 }
 
+//Route gives the list of network routes currently known by a system.
 func Route() ([]R, error) {
 	f, err := os.Open(filepath.Join(proc, "net", "route"))
 	if err != nil {
@@ -98,6 +99,7 @@ func Route() ([]R, error) {
 	return data, nil
 }
 
+//Netstat gives the list of connections that are known by a system.
 func Netstat(proto ...string) ([]C, error) {
 	if len(proto) == 0 {
 		proto = []string{"tcp", "udp"}

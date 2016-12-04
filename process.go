@@ -84,6 +84,8 @@ func (p P) Command() string {
 	return p.Name
 }
 
+//Processes returns the list of process currently exectued on a system. It tries
+//to copy the behavior of the `ps` command.
 func Processes() ([]P, error) {
 	data := make([]P, 0, 100)
 	err := filepath.Walk(proc, func(path string, i os.FileInfo, err error) error {
