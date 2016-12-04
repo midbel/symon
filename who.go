@@ -81,6 +81,7 @@ func Fail() error {
 	return nil
 }
 
+//Last gives the users currently logged in on a system.
 func Last() ([]L, error) {
 	const size = 292
 
@@ -132,10 +133,14 @@ func Last() ([]L, error) {
 	return data, nil
 }
 
+//Wtmp gives the full list from the startup of a system of users logging. It uses
+///var/log/wtmp.
 func Wtmp() ([]U, error) {
 	return scan("/var/log/wtmp")
 }
 
+//Wtmp gives the full list from the startup of a system of users logging. It uses
+///var/run/utmp.
 func Utmp() ([]U, error) {
 	return scan("/var/run/utmp")
 }

@@ -17,6 +17,7 @@ type F struct {
 	Check   int      `json:"check"`
 }
 
+//Mount gives the list of filesystem currently mounted on a system.
 func Mount() ([]F, error) {
 	f, err := os.Open(filepath.Join(proc, "mounts"))
 	if err != nil {
