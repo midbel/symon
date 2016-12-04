@@ -23,7 +23,7 @@ func (m M) Used() int {
 	return m.Total - m.Free - m.Buffers - m.Cache
 }
 
-//Free gives the memory used by a system in a slice. The first element is the 
+//Free gives the memory used by a system in a slice. The first element is the
 //RAM used, the second element is the swap usage.
 func Free() ([]M, error) {
 	set := func(p *int, v string) {
