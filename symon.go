@@ -13,43 +13,6 @@ import (
 
 const proc = "/proc"
 
-type Monitor struct {
-	db     *bolt.DB
-	ticker time.Ticker
-	done   chan struct{}
-}
-
-func NewMonitor(db string, ttl int) (*Monitor, error) {
-	if db, err := bolt.Open(db, 0644, nil); err != nil {
-		return nil, err
-	} else {
-		m := &Monitor{
-			db:     db,
-			done:   make(chan struct{}),
-			ticker: time.NewTicker(time.Second * time.Duration(ttl)),
-		}
-		go m.run()
-		return m, nil
-	}
-}
-
-func (m *Monitor) Close() error {
-	m.ticker.Stop()
-	close(m.done)
-
-	return m.db.Close()
-}
-
-func (m *Monitor) run() {
-	for {
-		select {
-		case <-m.done:
-			return
-		case <-m.ticker.C:
-		}
-	}
-}
-
 type Usage struct {
 	Host        string        `json:"hostname"`
 	Now         time.Time     `json:"timestamp"`
