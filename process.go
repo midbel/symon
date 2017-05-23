@@ -13,14 +13,6 @@ import (
 	"strings"
 )
 
-type psort []P
-
-func (p psort) Len() int { return len(p) }
-
-func (p psort) Less(i, j int) bool { return p[i].Pid < p[j].Pid }
-
-func (p psort) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
-
 type P struct {
 	Name   string `json:"process"`
 	State  string `json:"state"`
@@ -134,6 +126,8 @@ func Processes() ([]P, error) {
 		data = append(data, p)
 		return nil
 	})
-	sort.Sort(psort(data))
+	sort.Slice(data, func(i, j int) bool {
+		return data[i].Pid < data[j].Pid
+	})
 	return data, err
 }

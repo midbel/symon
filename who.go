@@ -23,14 +23,6 @@ var records = []string{
 	"dead",
 }
 
-type usort []U
-
-func (u usort) Len() int { return len(u) }
-
-func (u usort) Less(i, j int) bool { return u[i].Pid < u[j].Pid }
-
-func (u usort) Swap(i, j int) { u[i], u[j] = u[j], u[i] }
-
 type L struct {
 	Timestamp time.Time `json:"timestamp"`
 	User      string    `json:"username"`
@@ -180,7 +172,9 @@ func scan(path string) ([]U, error) {
 
 		data = append(data, u)
 	}
-	sort.Sort(usort(data))
+	sort.Slice(data, func(i, j int) bool {
+		return data[i].Pid < data[j].Pid
+	})
 	return data, nil
 }
 
