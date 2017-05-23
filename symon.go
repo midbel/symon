@@ -7,59 +7,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/boltdb/bolt"
 )
 
 const proc = "/proc"
-
-type Usage struct {
-	Host        string        `json:"hostname"`
-	Now         time.Time     `json:"timestamp"`
-	Seconds     time.Duration `json:"uptime"`
-	Users       []U           `json:"users"`
-	Processes   []P           `json:"processes"`
-	Memories    []M           `json:"memories"`
-	Filesystems []F           `json:"filesystems"`
-	Connections []C           `json:"connections"`
-	Routes      []R           `json:"routes"`
-	Err         error         `json:"error"`
-	History     []Usage       `json:"history,omitempty"`
-}
-
-func Update(s time.Duration, done <-chan struct{}) <-chan Usage {
-	ch := make(chan Usage)
-	host, err := os.Hostname()
-	if err != nil {
-		host = "localhost"
-	}
-	go func() {
-		ticker := time.NewTicker(s)
-		defer func() {
-			ticker.Stop()
-			close(ch)
-		}()
-		for {
-			select {
-			case <-done:
-				return
-			case t := <-ticker.C:
-				_, uptime := Uptime()
-				u := Usage{Host: host, Now: t, Seconds: uptime}
-
-				u.Users, u.Err = Utmp()
-				u.Processes, u.Err = Processes()
-				u.Memories, u.Err = Free()
-				u.Filesystems, u.Err = Mount()
-				u.Connections, u.Err = Netstat()
-				u.Routes, u.Err = Route()
-
-				ch <- u
-			}
-		}
-	}()
-	return ch
-}
 
 func Load() []float64 {
 	f, err := os.Open(filepath.Join(proc, "loadavg"))
