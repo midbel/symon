@@ -120,14 +120,12 @@ func Last() ([]L, error) {
 		return lastRecordSize, bs[:lastRecordSize], nil
 	})
 
-	var data []L
+	var ls []L
 	for i := 0; s.Scan(); i++ {
 		r := bytes.NewBuffer(s.Bytes())
-		var secs uint32
-		if err := binary.Read(r, binary.LittleEndian, &secs); err != nil {
-			return nil, err
-		}
-		if secs == 0 {
+		var cs uint32
+		binary.Read(r, binary.LittleEndian, &cs)
+		if cs == 0 {
 			continue
 		}
 		u, err := user.LookupId(strconv.Itoa(i))
@@ -135,15 +133,15 @@ func Last() ([]L, error) {
 			return nil, err
 		}
 		l := L{
-			When: time.Unix(int64(secs), 0),
+			When: time.Unix(int64(cs), 0),
 			User: u.Username,
 			Uid:  i,
 			Line: clean(r.Next(32)),
 			Host: r.Next(256),
 		}
-		data = append(data, l)
+		ls = append(ls, l)
 	}
-	return data, nil
+	return ls, nil
 }
 
 //Wtmp gives the full list from the startup of a system of users logging. It uses
