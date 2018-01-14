@@ -87,7 +87,7 @@ func runWho(cmd *cli.Command, args []string) error {
 		return err
 	}
 	for _, u := range us {
-		log.Printf("%v", u)
+		log.Printf("%+v", u)
 	}
 	return nil
 }

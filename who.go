@@ -11,6 +11,11 @@ import (
 	"time"
 )
 
+const (
+	lastRecordSize = 292
+	utmpRecordSize = 384
+)
+
 var records = []string{
 	"empty",
 	"run",
@@ -24,22 +29,26 @@ var records = []string{
 }
 
 type L struct {
-	Timestamp time.Time `json:"timestamp"`
-	User      string    `json:"username"`
-	Uid       int       `json:"uid"`
-	Line      string    `json:"line"`
-	Host      []byte    `json:"-"`
+	When time.Time `json:"timestamp"`
+	User string    `json:"username"`
+	Uid  int       `json:"uid"`
+	Line string    `json:"line"`
+	Host []byte    `json:"-"`
 }
 
 type U struct {
-	Record  int    `json:"record"`
-	Pid     int    `json:"pid"`
+	Record  uint32 `json:"record"`
+	Pid     uint32 `json:"pid"`
 	Device  string `json:"device"`
 	Id      string `json:"id"`
 	User    string `json:"user"`
 	Host    string `json:"host"`
-	Seconds int    `json:"seconds"`
+	Seconds uint32 `json:"seconds"`
 }
+
+// func (u U) MarshalJSON() ([]byte, error) {
+//
+// }
 
 func (u U) Hostname() string {
 	if u.Remote() {
@@ -58,7 +67,7 @@ func (u U) Since() time.Time {
 }
 
 func (u U) Type() string {
-	if u.Record >= len(records) {
+	if int(u.Record) >= len(records) {
 		return "***"
 	}
 	return records[u.Record]
@@ -75,28 +84,20 @@ func Fail() error {
 
 //Last gives the users currently logged in on a system.
 func Last() ([]L, error) {
-	const size = 292
-
 	f, err := os.Open("/var/log/lastlog")
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
 	s := bufio.NewScanner(f)
-	s.Split(func(data []byte, ateof bool) (int, []byte, error) {
-		if len(data) < size {
+	s.Split(func(bs []byte, ateof bool) (int, []byte, error) {
+		if len(bs) < lastRecordSize {
 			return 0, nil, nil
 		}
-		return size, data[:size], nil
+		return lastRecordSize, bs[:lastRecordSize], nil
 	})
 
 	var data []L
-	if stat, err := f.Stat(); err == nil {
-		data = make([]L, 0, int(stat.Size())/size)
-	} else {
-		data = make([]L, 0, 32)
-	}
-
 	for i := 0; s.Scan(); i++ {
 		if err := s.Err(); err != nil {
 			return nil, err
@@ -114,11 +115,11 @@ func Last() ([]L, error) {
 			return nil, err
 		}
 		l := L{
-			Timestamp: time.Unix(int64(secs), 0),
-			User:      u.Username,
-			Uid:       i,
-			Line:      clean(r.Next(32)),
-			Host:      r.Next(256),
+			When: time.Unix(int64(secs), 0),
+			User: u.Username,
+			Uid:  i,
+			Line: clean(r.Next(32)),
+			Host: r.Next(256),
 		}
 		data = append(data, l)
 	}
@@ -138,44 +139,39 @@ func Utmp() ([]U, error) {
 }
 
 func scan(path string) ([]U, error) {
-	const size = 384
-
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
-	scanner := bufio.NewScanner(f)
-	scanner.Split(func(data []byte, ateof bool) (int, []byte, error) {
-		if len(data) < size {
+	s := bufio.NewScanner(f)
+	s.Split(func(bs []byte, ateof bool) (int, []byte, error) {
+		if len(bs) < utmpRecordSize {
 			return 0, nil, nil
 		}
-		return size, data[:size], nil
+		return utmpRecordSize, bs[:utmpRecordSize], nil
 	})
 
-	s, _ := f.Stat()
-	data := make([]U, 0, int(s.Size())/size)
-	for scanner.Scan() {
-		if err := scanner.Err(); err != nil {
-			return nil, err
-		}
-		buf := scanner.Bytes()
-		u := U{
-			Record:  int(binary.LittleEndian.Uint32(buf[:4])),
-			Pid:     int(binary.LittleEndian.Uint16(buf[4:8])),
-			Device:  clean(buf[8:40]),
-			Id:      clean(buf[40:44]),
-			User:    clean(buf[44:76]),
-			Host:    clean(buf[76:332]),
-			Seconds: int(binary.LittleEndian.Uint32(buf[340:344])),
-		}
+	var us []U
+	for s.Scan() {
+		var u U
+		r := bytes.NewBuffer(s.Bytes())
 
-		data = append(data, u)
+		binary.Read(r, binary.LittleEndian, &u.Record)
+		binary.Read(r, binary.LittleEndian, &u.Pid)
+
+		u.Device, u.Id = clean(r.Next(32)), clean(r.Next(4))
+		u.User, u.Host = clean(r.Next(32)), clean(r.Next(256))
+		r.Next(8)
+
+		binary.Read(r, binary.LittleEndian, &u.Seconds)
+
+		us = append(us, u)
 	}
-	sort.Slice(data, func(i, j int) bool {
-		return data[i].Pid < data[j].Pid
+	sort.Slice(us, func(i, j int) bool {
+		return us[i].Pid < us[j].Pid
 	})
-	return data, nil
+	return us, nil
 }
 
 func clean(buf []byte) string {
