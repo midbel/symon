@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+  "encoding/json"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -96,5 +97,14 @@ func runServe(cmd *cli.Command, args []string) error {
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
 	}
+  http.HandleFunc("/meminfo/", func(w http.ResponseWriter, r *http.Request) {
+    ms, err := symon.Free()
+    if err != nil {
+      http.Error(w, err.Error(), http.StatusInternalServerError)
+      return
+    }
+    w.Header().Set("content-type", "application/json")
+    json.NewEncoder(w).Encode(ms)
+  })
 	return http.ListenAndServe(*addr, nil)
 }
