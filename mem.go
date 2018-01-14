@@ -2,20 +2,39 @@ package symon
 
 import (
 	"bufio"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type M struct {
-	Device    string `json:"device"`
-	Total     int    `json:"total"`
-	Free      int    `json:"free"`
-	Buffers   int    `json:"buffers"`
-	Cache     int    `json:"cache"`
-	Available int    `json:"available"`
-	Share     int    `json:"share"`
+	Device    string
+	Total     int
+	Free      int
+	Buffers   int
+	Cache     int
+	Available int
+	Share     int
+}
+
+func (m M) MarshalJSON() ([]byte, error) {
+	v := struct {
+		Device string    `json:"device"`
+		Total  int       `json:"total"`
+		Free   int       `json:"free"`
+		Used   int       `json:"used"`
+		When   time.Time `json:"dtstamp"`
+	}{
+		Device: m.Device,
+		Total:  m.Total,
+		Free:   m.Free,
+		Used:   m.Used(),
+		When:   time.Now(),
+	}
+	return json.Marshal(v)
 }
 
 func (m M) Used() int {
