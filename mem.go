@@ -2,7 +2,6 @@ package symon
 
 import (
 	"bufio"
-	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -26,10 +25,6 @@ func (m M) Used() int {
 //Free gives the memory used by a system in a slice. The first element is the
 //RAM used, the second element is the swap usage.
 func Free() ([]M, error) {
-	set := func(p *int, v string) {
-		result, _ := strconv.Atoi(v)
-		*p += result
-	}
 	f, err := os.Open(filepath.Join(proc, "meminfo"))
 	if err != nil {
 		return nil, err
@@ -37,32 +32,29 @@ func Free() ([]M, error) {
 	defer f.Close()
 	s := bufio.NewScanner(f)
 
-	mem, swap := M{}, M{}
+	var mem, swap M
 	for s.Scan() {
-		if err := s.Err(); err != nil && err != io.EOF {
-			return nil, err
-		}
 		parts := strings.Fields(s.Text())
 		field, value := parts[0], strings.TrimSpace(parts[1])
 		switch field := strings.ToLower(field[:len(field)-1]); field {
 		case "memtotal":
 			mem.Device = "mem"
-			set(&mem.Total, value)
+			mem.Total, _ = strconv.Atoi(value)
 		case "swaptotal":
 			swap.Device = "swap"
-			set(&swap.Total, value)
+			swap.Total, _ = strconv.Atoi(value)
 		case "memfree":
-			set(&mem.Free, value)
+			mem.Free, _ = strconv.Atoi(value)
 		case "swapfree":
-			set(&swap.Free, value)
+			swap.Free, _ = strconv.Atoi(value)
 		case "buffers":
-			set(&mem.Buffers, value)
+			mem.Buffers, _ = strconv.Atoi(value)
 		case "cached", "slab":
-			set(&mem.Cache, value)
+			mem.Cache, _ = strconv.Atoi(value)
 		case "memavailable":
-			set(&mem.Available, value)
+			mem.Available, _ = strconv.Atoi(value)
 		case "shmem":
-			set(&mem.Share, value)
+			mem.Share, _ = strconv.Atoi(value)
 		}
 	}
 	return []M{mem, swap}, nil
