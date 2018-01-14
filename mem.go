@@ -30,31 +30,31 @@ func Free() ([]M, error) {
 		return nil, err
 	}
 	defer f.Close()
-	s := bufio.NewScanner(f)
 
 	var mem, swap M
-	for s.Scan() {
-		parts := strings.Fields(s.Text())
-		field, value := parts[0], strings.TrimSpace(parts[1])
-		switch field := strings.ToLower(field[:len(field)-1]); field {
+	for s := bufio.NewScanner(f); s.Scan(); {
+		ps := strings.FieldsFunc(s.Text(), func(r rune) bool {
+			return r == ':' || r == ' ' || r == '\t'
+		})
+		switch f, v := strings.ToLower(ps[0]), ps[1]; f {
 		case "memtotal":
 			mem.Device = "mem"
-			mem.Total, _ = strconv.Atoi(value)
+			mem.Total, _ = strconv.Atoi(v)
 		case "swaptotal":
 			swap.Device = "swap"
-			swap.Total, _ = strconv.Atoi(value)
+			swap.Total, _ = strconv.Atoi(v)
 		case "memfree":
-			mem.Free, _ = strconv.Atoi(value)
+			mem.Free, _ = strconv.Atoi(v)
 		case "swapfree":
-			swap.Free, _ = strconv.Atoi(value)
+			swap.Free, _ = strconv.Atoi(v)
 		case "buffers":
-			mem.Buffers, _ = strconv.Atoi(value)
+			mem.Buffers, _ = strconv.Atoi(v)
 		case "cached", "slab":
-			mem.Cache, _ = strconv.Atoi(value)
+			mem.Cache, _ = strconv.Atoi(v)
 		case "memavailable":
-			mem.Available, _ = strconv.Atoi(value)
+			mem.Available, _ = strconv.Atoi(v)
 		case "shmem":
-			mem.Share, _ = strconv.Atoi(value)
+			mem.Share, _ = strconv.Atoi(v)
 		}
 	}
 	return []M{mem, swap}, nil
