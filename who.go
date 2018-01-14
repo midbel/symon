@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"os"
 	"os/user"
 	"sort"
@@ -15,6 +16,8 @@ const (
 	lastRecordSize = 292
 	utmpRecordSize = 384
 )
+
+var hostname string
 
 var records = []string{
 	"empty",
@@ -28,6 +31,14 @@ var records = []string{
 	"dead",
 }
 
+func init() {
+	if h, err := os.Hostname(); err == nil {
+		hostname = h
+	} else {
+		hostname = "localhost"
+	}
+}
+
 type L struct {
 	When time.Time `json:"timestamp"`
 	User string    `json:"username"`
@@ -37,25 +48,37 @@ type L struct {
 }
 
 type U struct {
-	Record  uint32 `json:"record"`
-	Pid     uint32 `json:"pid"`
-	Device  string `json:"device"`
-	Id      string `json:"id"`
-	User    string `json:"user"`
-	Host    string `json:"host"`
-	Seconds uint32 `json:"seconds"`
+	Record  uint32
+	Pid     uint32
+	Device  string
+	Id      string
+	User    string
+	Host    string
+	Seconds uint32
 }
 
-// func (u U) MarshalJSON() ([]byte, error) {
-//
-// }
+func (u U) MarshalJSON() ([]byte, error) {
+	v := struct {
+		Record string    `json:"record"`
+		Pid    uint32    `json:"pid"`
+		User   string    `json:"user"`
+		Host   string    `json:"host"`
+		When   time.Time `json:"dtstamp"`
+	}{
+		Record: u.Type(),
+		Pid:    u.Pid,
+		User:   u.User,
+		Host:   u.Hostname(),
+		When:   u.Since(),
+	}
+	return json.Marshal(v)
+}
 
 func (u U) Hostname() string {
 	if u.Remote() {
 		return u.Host
 	}
-	h, _ := os.Hostname()
-	return h
+	return hostname
 }
 
 func (u U) Remote() bool {
@@ -99,9 +122,6 @@ func Last() ([]L, error) {
 
 	var data []L
 	for i := 0; s.Scan(); i++ {
-		if err := s.Err(); err != nil {
-			return nil, err
-		}
 		r := bytes.NewBuffer(s.Bytes())
 		var secs uint32
 		if err := binary.Read(r, binary.LittleEndian, &secs); err != nil {
@@ -174,7 +194,9 @@ func scan(path string) ([]U, error) {
 	return us, nil
 }
 
-func clean(buf []byte) string {
-	buf = bytes.Trim(buf, "\x00")
-	return string(buf)
+func clean(bs []byte) string {
+	if len(bs) == 0 {
+		return ""
+	}
+	return string(bytes.Trim(bs, "\x00"))
 }

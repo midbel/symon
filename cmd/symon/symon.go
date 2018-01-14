@@ -106,5 +106,14 @@ func runServe(cmd *cli.Command, args []string) error {
 		w.Header().Set("content-type", "application/json")
 		json.NewEncoder(w).Encode(ms)
 	})
+	http.HandleFunc("/users/", func(w http.ResponseWriter, r *http.Request) {
+		us, err := symon.Utmp()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("content-type", "application/json")
+		json.NewEncoder(w).Encode(us)
+	})
 	return http.ListenAndServe(*addr, nil)
 }
