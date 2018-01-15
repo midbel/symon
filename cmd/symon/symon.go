@@ -79,10 +79,19 @@ func runMem(cmd *cli.Command, args []string) error {
 }
 
 func runWho(cmd *cli.Command, args []string) error {
+	all := cmd.Flag.Bool("a", false, "all")
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
 	}
-	us, err := symon.Utmp()
+	var (
+		us  []symon.U
+		err error
+	)
+	if !*all {
+		us, err = symon.Utmp()
+	} else {
+		us, err = symon.Wtmp()
+	}
 	if err != nil {
 		return err
 	}
@@ -99,5 +108,7 @@ func runServe(cmd *cli.Command, args []string) error {
 	}
 	http.Handle("/meminfo/", rest.Free())
 	http.Handle("/users/", rest.Who())
+	http.Handle("/process/", rest.Process())
+
 	return http.ListenAndServe(*addr, nil)
 }

@@ -7,6 +7,13 @@ import (
 	"github.com/midbel/symon"
 )
 
+func Process() http.Handler {
+	f := func(r *http.Request) (interface{}, error) {
+		return symon.Process()
+	}
+	return negociate(f)
+}
+
 func Free() http.Handler {
 	f := func(r *http.Request) (interface{}, error) {
 		return symon.Free()

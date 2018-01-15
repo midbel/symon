@@ -3,6 +3,7 @@ package symon
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"io"
 	"io/ioutil"
 	"os"
@@ -20,6 +21,27 @@ type P struct {
 	Gid    int    `json:"gid"`
 	Pid    int    `json:"pid"`
 	Parent int    `json:"ppid"`
+}
+
+func (p P) MarshalJSON() ([]byte, error) {
+	v := struct {
+		Name    string `json:"process"`
+		State   string `json:"state"`
+		User    string `json:"user"`
+		Group   string `json:"group"`
+		Pid     int    `json:"pid"`
+		Parent  int    `json:"ppid"`
+		Command string `json:"command"`
+	}{
+		Name:    p.Name,
+		State:   p.State,
+		Pid:     p.Pid,
+		Parent:  p.Parent,
+		User:    p.User(),
+		Group:   p.Group(),
+		Command: p.Command(),
+	}
+	return json.Marshal(v)
 }
 
 func (p P) User() string {
@@ -76,9 +98,9 @@ func (p P) Command() string {
 	return p.Name
 }
 
-//Processes returns the list of process currently exectued on a system. It tries
+//Process returns the list of process currently exectued on a system. It tries
 //to copy the behavior of the `ps` command.
-func Processes() ([]P, error) {
+func Process() ([]P, error) {
 	data := make([]P, 0, 100)
 	err := filepath.Walk(proc, func(path string, i os.FileInfo, err error) error {
 		if err != nil {
