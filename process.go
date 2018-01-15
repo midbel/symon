@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"io"
 	"io/ioutil"
 	"os"
 	"os/user"
@@ -117,18 +116,14 @@ func Process() ([]P, error) {
 			return err
 		}
 		defer f.Close()
-		p := P{}
-		scanner := bufio.NewScanner(f)
-		for scanner.Scan() {
-			if err := scanner.Err(); err != nil && err != io.EOF {
-				return err
-			}
-			parts := strings.Split(scanner.Text(), ":")
+
+		var p P
+		for s := bufio.NewScanner(f); s.Scan();  {
+			parts := strings.Split(s.Text(), ":")
 			if len(parts) <= 1 {
 				continue
 			}
-			field, value := parts[0], strings.TrimSpace(parts[1])
-			switch field := strings.ToLower(field); field {
+			switch field, value := strings.ToLower(parts[0]), strings.TrimSpace(parts[1]); field {
 			case "name":
 				p.Name = value
 			case "state":
