@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>symon</title>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="./symon.css">
   </head>
   <body>
     <main id="symon" class="container-fluid">
@@ -16,7 +17,12 @@
                 <datalist id="commands-list">
                   <option v-for="c in commands" :value="c">{{c}}</option>
                 </datalist>
-                <input type="search" placeholder="command name" list="commands-list" class="form-control"/>
+                <input type="search"
+                  placeholder="bash, postgresql, atom, symon, ..."
+                  list="commands-list"
+                  class="form-control"
+                  v-model="criteria.command"
+                  style="width:480px"/>
               </div>
               <div class="form-group form-group-sm">
                 <label>user</label>
@@ -41,9 +47,20 @@
           <aside v-if="error" class="alert alert-danger">
             <p class="text-center"><strong>{{error}}</strong></p>
           </aside>
-          <table class="table">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th class="text-center">#</th>
+                <th>user</th>
+                <th class="text-center">pid</td>
+                <th class="text-center">ppid</td>
+                <th class="text-center">state</td>
+                <th>command</td>
+              </tr>
+            </thead>
             <tbody>
-              <tr v-for="p in all">
+              <tr v-for="(p, i) in all">
+                <td class="text-center" width="5%">{{i+1}}</td>
                 <td width="10%">{{p.user}}</td>
                 <td class="text-center" width="5%">{{p.pid}}</td>
                 <td class="text-center" width="5%">{{p.ppid}}</td>

@@ -25,7 +25,15 @@ const app = new Vue({
   },
   computed: {
     all() {
-      return this.process;
+      let keys = [];
+      if ( this.criteria.command.length >= 3 ) {
+        key.push(d => d.command.indexOf(this.criteria.command) >= 0)
+      }
+      if (!keys.length) {
+        return this.process;
+      }
+      console.log(_.filter(this.process, keys))
+      return _.filter(this.process, keys);
     },
     users() {
       return this.extract("user");
