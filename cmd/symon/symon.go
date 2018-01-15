@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"log"
 	"net/http"
 	"os"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/midbel/cli"
 	"github.com/midbel/symon"
+	"github.com/midbel/symon/rest"
 )
 
 const helpText = `{{.Name}} contains various actions to monitor system activities.
@@ -97,23 +97,7 @@ func runServe(cmd *cli.Command, args []string) error {
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
 	}
-	http.HandleFunc("/meminfo/", func(w http.ResponseWriter, r *http.Request) {
-		ms, err := symon.Free()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.Header().Set("content-type", "application/json")
-		json.NewEncoder(w).Encode(ms)
-	})
-	http.HandleFunc("/users/", func(w http.ResponseWriter, r *http.Request) {
-		us, err := symon.Utmp()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.Header().Set("content-type", "application/json")
-		json.NewEncoder(w).Encode(us)
-	})
+	http.Handle("/meminfo/", rest.Free())
+	http.Handle("/users/", rest.Who())
 	return http.ListenAndServe(*addr, nil)
 }
