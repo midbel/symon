@@ -54,7 +54,7 @@ const app = new Vue({
     update() {
       fetch(api.process, {headers: {accept: "application/json"}}).then(r => {
         if (!r.ok) {
-          return Promise.reject(r.statusText());
+          return Promise.reject(r.statusText);
         }
         return r.json();
       }).then(rs => {
@@ -62,9 +62,6 @@ const app = new Vue({
         this.error = "";
       }).catch(err => {
         this.error = err;
-        if (this.interval) {
-          clearInterval(this.interval);
-        }
       });
     },
   },
