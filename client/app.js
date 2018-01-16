@@ -59,9 +59,9 @@ const app = new Vue({
         return r.json();
       }).then(rs => {
         this.process = _.sortBy(rs, [d => d.ppid, d => d.pid]);
-        this.error = "";
       }).catch(err => {
         this.error = err;
+        setTimeout(() => this.error = "", 10*1000);
       });
     },
   },
