@@ -35,16 +35,16 @@ const app = new Vue({
       return chain.value()
     },
     users() {
-      return this.extract("user");
+      return [""].concat(this.extract("user"));
     },
     groups() {
-      return this.extract("group");
+      return [""].concat(this.extract("group"));
     },
     commands() {
-      return this.extract("process");
+      return [""].concat(this.extract("process"));
     },
     states() {
-      return this.extract("state");
+      return [""].concat(this.extract("state"));
     },
   },
   methods: {
