@@ -14,12 +14,8 @@
             <fieldset class="text-center">
               <div class="form-group form-group-sm">
                 <label>command</label>
-                <datalist id="commands-list">
-                  <option v-for="c in commands" :value="c">{{c}}</option>
-                </datalist>
-                <input type="search"
+                <input type="text"
                   placeholder="bash, postgresql, atom, symon, ..."
-                  list="commands-list"
                   class="form-control"
                   v-model="criteria.command"
                   style="width:480px"/>

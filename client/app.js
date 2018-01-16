@@ -25,15 +25,14 @@ const app = new Vue({
   },
   computed: {
     all() {
-      let keys = [];
+      let chain = _.chain(this.process);
       if ( this.criteria.command.length >= 3 ) {
-        key.push(d => d.command.indexOf(this.criteria.command) >= 0)
+        chain = chain.filter(d => d.command.indexOf(this.criteria.command) >= 0);
       }
-      if (!keys.length) {
-        return this.process;
-      }
-      console.log(_.filter(this.process, keys))
-      return _.filter(this.process, keys);
+      chain = chain.filter(d => this.criteria.user == "" || d.user == this.criteria.user);
+      chain = chain.filter(d => this.criteria.group == "" || d.group == this.criteria.group);
+
+      return chain.value()
     },
     users() {
       return this.extract("user");
