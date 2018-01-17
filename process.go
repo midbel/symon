@@ -118,7 +118,7 @@ func Process() ([]P, error) {
 		defer f.Close()
 
 		var p P
-		for s := bufio.NewScanner(f); s.Scan();  {
+		for s := bufio.NewScanner(f); s.Scan(); {
 			parts := strings.Split(s.Text(), ":")
 			if len(parts) <= 1 {
 				continue

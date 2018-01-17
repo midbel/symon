@@ -3,9 +3,28 @@ package rest
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/midbel/symon"
 )
+
+func Version() http.Handler {
+	f := func(r *http.Request) (interface{}, error) {
+		v := struct {
+			Type    string        `json:"kernel"`
+			Release string        `json:"release"`
+			Uptime  time.Time     `json:"uptime"`
+			Elapsed time.Duration `json:"duration"`
+		}{}
+		var err error
+		if v.Type, v.Release, err = symon.Version(); err != nil {
+			return nil, err
+		}
+		v.Uptime, v.Elapsed = symon.Uptime()
+		return v, nil
+	}
+	return negociate(f)
+}
 
 func Process() http.Handler {
 	f := func(r *http.Request) (interface{}, error) {

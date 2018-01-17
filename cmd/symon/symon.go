@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"text/template"
+	"time"
 
 	"github.com/midbel/cli"
 	"github.com/midbel/symon"
@@ -42,6 +43,11 @@ var commands = []*cli.Command{
 		Short: "print information about who are logged in",
 		Run:   runWho,
 	},
+	{
+		Usage: "version",
+		Short: "print version information",
+		Run:   runVersion,
+	},
 }
 
 func main() {
@@ -62,6 +68,19 @@ func main() {
 	if err := cli.Run(commands, usage, nil); err != nil {
 		log.Fatalln(err)
 	}
+}
+
+func runVersion(cmd *cli.Command, args []string) error {
+	if err := cmd.Flag.Parse(args); err != nil {
+		return err
+	}
+	w, d := symon.Uptime()
+	i, v, err := symon.Version()
+	if err != nil {
+		return err
+	}
+	log.Printf("%s (%s) - %s (%s)", v, i, w.Format(time.RFC1123), d)
+	return nil
 }
 
 func runMem(cmd *cli.Command, args []string) error {
@@ -106,6 +125,8 @@ func runServe(cmd *cli.Command, args []string) error {
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
 	}
+	http.Handle("/", rest.Version())
+	http.Handle("/version/", rest.Version())
 	http.Handle("/meminfo/", rest.Free())
 	http.Handle("/users/", rest.Who())
 	http.Handle("/process/", rest.Process())

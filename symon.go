@@ -2,6 +2,7 @@ package symon
 
 import (
 	"bufio"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -49,4 +50,20 @@ func Uptime() (time.Time, time.Duration) {
 	}
 	up := time.Duration(int64(secs)) * time.Second
 	return time.Now().Add(-up), up
+}
+
+func Version() (string, string, error) {
+	infos := make([]string, 2)
+	for i, n := range []string{"ostype", "osrelease"} {
+		bs, err := ioutil.ReadFile(filepath.Join(proc, "sys", "kernel", n))
+		if err != nil {
+			return "", "", err
+		}
+		infos[i] = strings.TrimSpace(string(bs))
+	}
+	bs, err := ioutil.ReadFile("/etc/issue.net")
+	if err != nil && !os.IsNotExist(err) {
+		return "", "", err
+	}
+	return strings.Join(infos, " "), strings.TrimSpace(string(bs)), nil
 }
