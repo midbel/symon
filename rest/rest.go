@@ -8,6 +8,13 @@ import (
 	"github.com/midbel/symon"
 )
 
+func Routes() http.Handler {
+	f := func(r *http.Request) (interface{}, error) {
+		return symon.Routes()
+	}
+	return negociate(f)
+}
+
 func Version() http.Handler {
 	f := func(r *http.Request) (interface{}, error) {
 		v := struct {

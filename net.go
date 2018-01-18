@@ -71,7 +71,7 @@ type R struct {
 }
 
 //Route gives the list of network routes currently known by a system.
-func Route() ([]R, error) {
+func Routes() ([]R, error) {
 	f, err := os.Open(filepath.Join(proc, "net", "route"))
 	if err != nil {
 		return nil, err
