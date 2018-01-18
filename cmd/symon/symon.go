@@ -84,28 +84,28 @@ func runRoutes(cmd *cli.Command, args []string) error {
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
 	}
-  rs, err := symon.Routes()
-  if err != nil {
-    return err
-  }
-  for _, r := range rs {
-    log.Printf("%+v", r)
-  }
-  return nil
+	rs, err := symon.Routes()
+	if err != nil {
+		return err
+	}
+	for _, r := range rs {
+		log.Printf("%+v", r)
+	}
+	return nil
 }
 
 func runNetstat(cmd *cli.Command, args []string) error {
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
 	}
-  cs, err := symon.Netstat()
-  if err != nil {
-    return err
-  }
-  for _, c := range cs {
-    log.Printf("%+v", c)
-  }
-  return nil
+	cs, err := symon.Netstat()
+	if err != nil {
+		return err
+	}
+	for _, c := range cs {
+		log.Printf("%+v", c)
+	}
+	return nil
 }
 
 func runVersion(cmd *cli.Command, args []string) error {
@@ -165,7 +165,7 @@ func runServe(cmd *cli.Command, args []string) error {
 	}
 	http.Handle("/", rest.Version())
 	http.Handle("/routes/", rest.Routes())
-  http.Handle("/netstat/", rest.Netstat())
+	http.Handle("/netstat/", rest.Netstat())
 	http.Handle("/version/", rest.Version())
 	http.Handle("/meminfo/", rest.Free())
 	http.Handle("/users/", rest.Who())

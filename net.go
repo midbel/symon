@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -48,6 +49,25 @@ type C struct {
 	Uid    int    `json:"uid"`
 	Recv   int    `json:"recv"`
 	Send   int    `json:"send"`
+}
+
+func (c C) MarshalJSON() ([]byte, error) {
+	v := struct {
+		Proto  string `json:"protocol"`
+		Local  string `json:"local"`
+		Remote string `json:"remote"`
+		State  string `json:"state"`
+		Recv   int    `json:"recv"`
+		Send   int    `json:"send"`
+	}{
+		Proto:  c.Proto,
+		Local:  c.Local,
+		Remote: c.Remote,
+		State:  c.Status(),
+		Recv:   c.Recv,
+		Send:   c.Send,
+	}
+	return json.Marshal(v)
 }
 
 func (c C) Status() string {
