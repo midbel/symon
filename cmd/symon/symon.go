@@ -48,6 +48,16 @@ var commands = []*cli.Command{
 		Short: "print version information",
 		Run:   runVersion,
 	},
+	{
+		Usage: "routes",
+		Short: "print routes known by a system",
+		Run:   runRoutes,
+	},
+	{
+		Usage: "netstat",
+		Short: "print information about active connections on a system",
+		Run:   runNetstat,
+	},
 }
 
 func main() {
@@ -68,6 +78,34 @@ func main() {
 	if err := cli.Run(commands, usage, nil); err != nil {
 		log.Fatalln(err)
 	}
+}
+
+func runRoutes(cmd *cli.Command, args []string) error {
+	if err := cmd.Flag.Parse(args); err != nil {
+		return err
+	}
+  rs, err := symon.Routes()
+  if err != nil {
+    return err
+  }
+  for _, r := range rs {
+    log.Printf("%+v", r)
+  }
+  return nil
+}
+
+func runNetstat(cmd *cli.Command, args []string) error {
+	if err := cmd.Flag.Parse(args); err != nil {
+		return err
+	}
+  cs, err := symon.Netstat()
+  if err != nil {
+    return err
+  }
+  for _, c := range cs {
+    log.Printf("%+v", c)
+  }
+  return nil
 }
 
 func runVersion(cmd *cli.Command, args []string) error {
