@@ -165,6 +165,7 @@ func runServe(cmd *cli.Command, args []string) error {
 	}
 	http.Handle("/", rest.Version())
 	http.Handle("/routes/", rest.Routes())
+  http.Handle("/netstat/", rest.Netstat())
 	http.Handle("/version/", rest.Version())
 	http.Handle("/meminfo/", rest.Free())
 	http.Handle("/users/", rest.Who())

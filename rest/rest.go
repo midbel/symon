@@ -15,6 +15,14 @@ func Routes() http.Handler {
 	return negociate(f)
 }
 
+func Netstat() http.Handler {
+	f := func(r *http.Request) (interface{}, error) {
+		q := r.URL.Query()
+		return symon.Netstat(q["protocol"]...)
+	}
+	return negociate(f)
+}
+
 func Version() http.Handler {
 	f := func(r *http.Request) (interface{}, error) {
 		v := struct {

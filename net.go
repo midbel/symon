@@ -42,8 +42,8 @@ const (
 
 type C struct {
 	Proto  string `json:"protocol"`
-	Local  string `json:"local_address"`
-	Remote string `json:"remote_address"`
+	Local  string `json:"local"`
+	Remote string `json:"remote"`
 	State  int    `json:"state"`
 	Uid    int    `json:"uid"`
 	Recv   int    `json:"recv"`
