@@ -9,9 +9,46 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 )
+
+type service struct {
+	port, proto, name string
+	aliases           []string
+}
+
+var services []service
+
+func init() {
+	f, err := os.Open("/etc/services")
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	s := bufio.NewScanner(f)
+	for s.Scan() {
+		t := s.Text()
+		if len(t) == 0 || t[0] == '#' {
+			continue
+		}
+		if ix := strings.Index(t, "#"); ix >= 0 {
+			t = t[:ix]
+		}
+		fs := strings.Fields(t)
+		ps := strings.Split(fs[1], "/")
+		s := service{
+			port:  ps[0],
+			proto: ps[1],
+			name:  fs[0],
+		}
+		services = append(services, s)
+	}
+	sort.Slice(services, func(i, j int) bool {
+		return services[i].port <= services[j].port
+	})
+}
 
 var states = []string{
 	"established",

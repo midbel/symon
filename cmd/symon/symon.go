@@ -164,6 +164,7 @@ func runServe(cmd *cli.Command, args []string) error {
 		return err
 	}
 	http.Handle("/", rest.Version())
+	http.Handle("/mount/", rest.Mount())
 	http.Handle("/routes/", rest.Routes())
 	http.Handle("/netstat/", rest.Netstat())
 	http.Handle("/version/", rest.Version())
