@@ -56,12 +56,24 @@ func Version() http.Handler {
 			Release string        `json:"release"`
 			Uptime  time.Time     `json:"uptime"`
 			Elapsed time.Duration `json:"duration"`
+			Users   int           `json:"users"`
+			Process int           `json:"process"`
+			Load    []float64     `json:"loadavg"`
 		}{}
 		var err error
 		if v.Type, v.Release, err = symon.Version(); err != nil {
 			return nil, err
 		}
 		v.Uptime, v.Elapsed = symon.Uptime()
+
+		if ps, err := symon.Process(); err == nil {
+			v.Process = len(ps)
+		}
+		if us, err := symon.Utmp(); err == nil {
+			v.Users = len(us)
+		}
+		v.Load = symon.Load()
+
 		return v, nil
 	}
 	return negociate(f)
