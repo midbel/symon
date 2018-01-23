@@ -112,7 +112,11 @@ func Process() ([]P, error) {
 			return filepath.SkipDir
 		}
 		f, err := os.Open(filepath.Join(path, "status"))
-		if err != nil {
+		switch {
+		case err == nil:
+		case os.IsNotExist(err):
+			return filepath.SkipDir
+		default:
 			return err
 		}
 		defer f.Close()

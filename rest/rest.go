@@ -56,10 +56,18 @@ func Version() http.Handler {
 			Release string        `json:"release"`
 			Uptime  time.Time     `json:"uptime"`
 			Elapsed time.Duration `json:"duration"`
+			Users   int `json:"users"`
+			Process int `json:"process"`
 		}{}
 		var err error
 		if v.Type, v.Release, err = symon.Version(); err != nil {
 			return nil, err
+		}
+		if us, err := symon.Utmp(); err == nil {
+			v.Users = len(us)
+		}
+		if ps, err := symon.Process(); err == nil {
+			v.Process = len(ps)
 		}
 		v.Uptime, v.Elapsed = symon.Uptime()
 		return v, nil
