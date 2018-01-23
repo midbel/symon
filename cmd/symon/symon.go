@@ -4,8 +4,10 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"fmt"
 	"path/filepath"
 	"text/template"
+	"text/tabwriter"
 	"time"
 
 	"github.com/midbel/cli"
@@ -58,6 +60,32 @@ var commands = []*cli.Command{
 		Short: "print information about active connections on a system",
 		Run:   runNetstat,
 	},
+}
+
+type Size int
+
+const (
+	Kilo Size = 1
+	Mega Size = Kilo * 1024
+	Giga Size = Mega * 1024
+)
+
+func (s *Size) String() string {
+	return fmt.Sprint(*s)
+}
+
+func (s *Size) Set(v string) error {
+	switch v {
+	default:
+		return fmt.Errorf("unknow unit %s", v)
+	case "m":
+		*s = Mega
+	case "k", "":
+		*s = Kilo
+	case "g":
+		*s = Giga
+	}
+	return nil
 }
 
 func main() {
@@ -122,6 +150,10 @@ func runVersion(cmd *cli.Command, args []string) error {
 }
 
 func runMem(cmd *cli.Command, args []string) error {
+	const pattern = "%-9s %9d %9d %9d %9d %9d %9d"
+
+	size := Kilo
+	cmd.Flag.Var(&size, "u", "unit size")
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
 	}
@@ -129,8 +161,13 @@ func runMem(cmd *cli.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	w := tabwriter.NewWriter(os.Stdout, 12, 2, 2, '\t', tabwriter.AlignRight)
+	log.SetOutput(w)
+
+	s := int(size)
+	log.Printf("%9s %9s %9s %9s %9s %9s %9s", " ", "total", "used", "free", "shared", "buf/cache", "available")
 	for _, m := range ms {
-		log.Printf("%v", m)
+		log.Printf(pattern, m.Device+":", m.Total/s, m.Used()/s, m.Free/s, m.Share/s, (m.Cache+m.Buffers)/s, m.Available/s)
 	}
 	return nil
 }
