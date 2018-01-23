@@ -64,6 +64,12 @@ func Version() http.Handler {
 		if v.Type, v.Release, err = symon.Version(); err != nil {
 			return nil, err
 		}
+		if us, err := symon.Utmp(); err == nil {
+			v.Users = len(us)
+		}
+		if ps, err := symon.Process(); err == nil {
+			v.Process = len(ps)
+		}
 		v.Uptime, v.Elapsed = symon.Uptime()
 
 		if ps, err := symon.Process(); err == nil {
