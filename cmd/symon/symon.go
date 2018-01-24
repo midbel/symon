@@ -63,7 +63,7 @@ var commands = []*cli.Command{
 	{
 		Usage: "status",
 		Short: "print information about cpu usage from boot time",
-		Run: runStat,
+		Run:   runStat,
 	},
 }
 
@@ -117,7 +117,7 @@ func runStat(cmd *cli.Command, args []string) error {
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
 	}
-	const pattern = "%-4s %6.2f %6.2f %6.2f %6.2f %6.2f"
+	const pattern = "%-5s %6.2f %6.2f %6.2f %6.2f %6.2f"
 
 	s, err := symon.Stat()
 	if err != nil {
@@ -129,14 +129,14 @@ func runStat(cmd *cli.Command, args []string) error {
 	cs := make([]symon.Core, 0, 1+len(s.Cores))
 	cs = append(cs, s.Main)
 	cs = append(cs, s.Cores...)
-	log.Printf("%4s %6s %6s %6s %6s %6s", " ", "user", "syst", "nice", "idle", "wait")
+	log.Printf("%5s %6s %6s %6s %6s %6s", " ", "user", "syst", "nice", "idle", "wait")
 	for _, c := range cs {
-		log.Printf(pattern, c.Label, c.User, c.System, c.Nice, c.Idle, c.Wait)
+		log.Printf(pattern, "%"+c.Label, c.User, c.System, c.Nice, c.Idle, c.Wait)
 	}
 	log.Println()
 	log.Printf("boot %s (%s)", s.Boot.Format(time.RFC1123), time.Now().Format(time.RFC1123))
-	log.Printf("run  %d", s.Running)
-	log.Printf("blk  %d", s.Waiting)
+	log.Printf("running  %d", s.Running)
+	log.Printf("waiting  %d", s.Waiting)
 
 	return nil
 }

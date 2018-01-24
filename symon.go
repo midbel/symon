@@ -107,12 +107,12 @@ func Version() (string, string, error) {
 }
 
 type Core struct {
-	Label  string `json:"label"`
-	User   float64  `json:"user"`
-	Nice   float64  `json:"nice"`
-	System float64  `json:"system"`
-	Idle   float64  `json:"idle"`
-	Wait float64  `json:"iowait"`
+	Label  string  `json:"label"`
+	User   float64 `json:"user"`
+	Nice   float64 `json:"nice"`
+	System float64 `json:"system"`
+	Idle   float64 `json:"idle"`
+	Wait   float64 `json:"iowait"`
 }
 
 func loadStatsCPU(v string, vs []string) Core {
@@ -121,13 +121,13 @@ func loadStatsCPU(v string, vs []string) Core {
 	fs := make([]float64, len(vs))
 	var n float64
 	for i, v := range vs {
-			fs[i], _ = strconv.ParseFloat(v, 64)
-			n += fs[i]
+		fs[i], _ = strconv.ParseFloat(v, 64)
+		n += fs[i]
 	}
 
 	cs := []*float64{&c.User, &c.Nice, &c.System, &c.Idle, &c.Wait}
 	for i := 0; i < len(cs); i++ {
-		*(cs[i]) = fs[i]/n
+		*(cs[i]) = fs[i] / n
 	}
 	return c
 }
