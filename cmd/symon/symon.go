@@ -1,13 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
-	"fmt"
 	"path/filepath"
-	"text/template"
 	"text/tabwriter"
+	"text/template"
 	"time"
 
 	"github.com/midbel/cli"
@@ -60,6 +60,11 @@ var commands = []*cli.Command{
 		Short: "print information about active connections on a system",
 		Run:   runNetstat,
 	},
+	{
+		Usage: "status",
+		Short: "print information about cpu usage from boot time",
+		Run: runStat,
+	},
 }
 
 type Size int
@@ -106,6 +111,34 @@ func main() {
 	if err := cli.Run(commands, usage, nil); err != nil {
 		log.Fatalln(err)
 	}
+}
+
+func runStat(cmd *cli.Command, args []string) error {
+	if err := cmd.Flag.Parse(args); err != nil {
+		return err
+	}
+	const pattern = "%-4s %6.2f %6.2f %6.2f %6.2f %6.2f"
+
+	s, err := symon.Stat()
+	if err != nil {
+		return err
+	}
+	w := tabwriter.NewWriter(os.Stdout, 12, 2, 2, '\t', tabwriter.AlignRight)
+	log.SetOutput(w)
+
+	cs := make([]symon.Core, 0, 1+len(s.Cores))
+	cs = append(cs, s.Main)
+	cs = append(cs, s.Cores...)
+	log.Printf("%4s %6s %6s %6s %6s %6s", " ", "user", "syst", "nice", "idle", "wait")
+	for _, c := range cs {
+		log.Printf(pattern, c.Label, c.User, c.System, c.Nice, c.Idle, c.Wait)
+	}
+	log.Println()
+	log.Printf("boot %s (%s)", s.Boot.Format(time.RFC1123), time.Now().Format(time.RFC1123))
+	log.Printf("run  %d", s.Running)
+	log.Printf("blk  %d", s.Waiting)
+
+	return nil
 }
 
 func runRoutes(cmd *cli.Command, args []string) error {
@@ -201,6 +234,7 @@ func runServe(cmd *cli.Command, args []string) error {
 		return err
 	}
 	http.Handle("/", rest.Version())
+	http.Handle("/stats/", rest.Stat())
 	http.Handle("/mount/", rest.Mount())
 	http.Handle("/routes/", rest.Routes())
 	http.Handle("/netstat/", rest.Netstat())

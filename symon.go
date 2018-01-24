@@ -12,6 +12,44 @@ import (
 
 const proc = "/proc"
 
+type S struct {
+	Main    Core      `json:"cpu"`
+	Cores   []Core    `json:"cores"`
+	Boot    time.Time `json:"boot"`
+	Forks   int64     `json:"forks"`
+	Running int64     `json:"running"`
+	Waiting int64     `json:"waiting"`
+}
+
+func Stat() (*S, error) {
+	f, err := os.Open(filepath.Join(proc, "stat"))
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	stat := new(S)
+	for s := bufio.NewScanner(f); s.Scan(); {
+		fs := strings.SplitN(s.Text(), " ", 2)
+		switch v, vs := fs[0], strings.Fields(fs[1]); {
+		case strings.HasPrefix(v, "cpu") && v != "cpu":
+			stat.Cores = append(stat.Cores, loadStatsCPU(v, vs))
+		case v == "cpu":
+			stat.Main = loadStatsCPU(v, vs)
+		case v == "btime":
+			t, _ := strconv.ParseInt(vs[0], 10, 64)
+			stat.Boot = time.Unix(t, 0)
+		case v == "processes":
+			stat.Forks, _ = strconv.ParseInt(vs[0], 10, 64)
+		case v == "procs_running":
+			stat.Running, _ = strconv.ParseInt(vs[0], 10, 64)
+		case v == "procs_blocked":
+			stat.Waiting, _ = strconv.ParseInt(vs[0], 10, 64)
+		}
+	}
+	return stat, nil
+}
+
 func Load() []float64 {
 	f, err := os.Open(filepath.Join(proc, "loadavg"))
 	if err != nil {
@@ -66,4 +104,30 @@ func Version() (string, string, error) {
 		return "", "", err
 	}
 	return strings.Join(infos, " "), strings.TrimSpace(string(bs)), nil
+}
+
+type Core struct {
+	Label  string `json:"label"`
+	User   float64  `json:"user"`
+	Nice   float64  `json:"nice"`
+	System float64  `json:"system"`
+	Idle   float64  `json:"idle"`
+	Wait float64  `json:"iowait"`
+}
+
+func loadStatsCPU(v string, vs []string) Core {
+	c := Core{Label: v}
+
+	fs := make([]float64, len(vs))
+	var n float64
+	for i, v := range vs {
+			fs[i], _ = strconv.ParseFloat(v, 64)
+			n += fs[i]
+	}
+
+	cs := []*float64{&c.User, &c.Nice, &c.System, &c.Idle, &c.Wait}
+	for i := 0; i < len(cs); i++ {
+		*(cs[i]) = fs[i]/n
+	}
+	return c
 }

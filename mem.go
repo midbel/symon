@@ -69,7 +69,7 @@ func Free() ([]M, error) {
 		case "buffers":
 			mem.Buffers, _ = strconv.Atoi(v)
 		case "cached", "slab":
-		 	n, _ := strconv.Atoi(v)
+			n, _ := strconv.Atoi(v)
 			mem.Cache += n
 		case "memavailable":
 			mem.Available, _ = strconv.Atoi(v)

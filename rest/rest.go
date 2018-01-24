@@ -9,6 +9,13 @@ import (
 	"github.com/midbel/symon"
 )
 
+func Stat() http.Handler {
+	f := func(r *http.Request) (interface{}, error) {
+		return symon.Stat()
+	}
+	return negociate(f)
+}
+
 func Mount() http.Handler {
 	f := func(r *http.Request) (interface{}, error) {
 		return symon.Mount()
