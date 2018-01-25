@@ -2,6 +2,8 @@ package symon
 
 import (
 	"bufio"
+	//"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -10,11 +12,13 @@ import (
 	"time"
 )
 
+var Tick float64 = 100.0
+
 const proc = "/proc"
 
 type S struct {
-	Main    Core      `json:"cpu"`
-	Cores   []Core    `json:"cores"`
+	Main    *Core     `json:"cpu"`
+	Cores   []*Core   `json:"cores"`
 	Boot    time.Time `json:"boot"`
 	Forks   int64     `json:"forks"`
 	Running int64     `json:"running"`
@@ -48,6 +52,42 @@ func Stat() (*S, error) {
 		}
 	}
 	return stat, nil
+}
+
+func TotalPercentCPU(e time.Duration) <-chan float64 {
+	q := make(chan float64)
+	go func() {
+		defer close(q)
+		f, err := os.Open(filepath.Join(proc, "stat"))
+		if err != nil {
+			return
+		}
+		defer f.Close()
+		r := bufio.NewReader(f)
+
+		var total, idle float64
+		for {
+			s, err := r.ReadString('\n')
+			if err != nil {
+				return
+			}
+			vs := strings.SplitN(s, " ", 2)
+			if vs[0] != "cpu" {
+				return
+			}
+			c := loadStatsCPU(vs[0], strings.Fields(vs[1]))
+			i, t := c.IdleTime(), c.TotalTime()
+			idle, total = i-idle, t-total
+
+			<-time.After(e)
+			f.Seek(io.SeekStart, 0)
+			r.Reset(f)
+			q <- (1000 * (total - idle) / total) / 10
+
+			idle, total = i, t
+		}
+	}()
+	return q
 }
 
 func Load() []float64 {
@@ -109,25 +149,47 @@ func Version() (string, string, error) {
 type Core struct {
 	Label  string  `json:"label"`
 	User   float64 `json:"user"`
-	Nice   float64 `json:"nice"`
-	System float64 `json:"system"`
+	UserN  float64 `json:"usern"`
+	Syst   float64 `json:"system"`
 	Idle   float64 `json:"idle"`
 	Wait   float64 `json:"iowait"`
+	Irq    float64 `json:"irq"`
+	Soft   float64 `json:"softirq"`
+	Steal  float64 `json:"steal"`
+	Guest  float64 `json:"guest"`
+	GuestN float64 `json:"guestn"`
 }
 
-func loadStatsCPU(v string, vs []string) Core {
-	c := Core{Label: v}
+// func (c Core) Diff(p Core) (*Core, error) {
+// 	return nil, nil
+// }
 
-	fs := make([]float64, len(vs))
-	var n float64
-	for i, v := range vs {
-		fs[i], _ = strconv.ParseFloat(v, 64)
-		n += fs[i]
+func (c Core) TotalTime() float64 {
+	return c.User + c.UserN + c.Syst + c.Syst + c.Idle + c.Wait + c.Irq + c.Soft + c.Steal + c.Guest + c.GuestN
+}
+
+func (c Core) IdleTime() float64 {
+	return c.Idle
+}
+
+func loadStatsCPU(v string, vs []string) *Core {
+	c := &Core{Label: v}
+
+	cs := []*float64{
+		&c.User,
+		&c.UserN,
+		&c.Syst,
+		&c.Idle,
+		&c.Wait,
+		&c.Irq,
+		&c.Soft,
+		&c.Steal,
+		&c.Guest,
+		&c.GuestN,
 	}
-
-	cs := []*float64{&c.User, &c.Nice, &c.System, &c.Idle, &c.Wait}
-	for i := 0; i < len(cs); i++ {
-		*(cs[i]) = fs[i] / n
+	for i := 0; i < len(vs); i++ {
+		v, _ := strconv.ParseFloat(vs[i], 64)
+		*(cs[i]) = v / Tick
 	}
 	return c
 }

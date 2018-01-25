@@ -62,8 +62,13 @@ var commands = []*cli.Command{
 	},
 	{
 		Usage: "status",
-		Short: "print information about cpu usage from boot time",
+		Short: "print statistics about system status from boot time",
 		Run:   runStat,
+	},
+	{
+		Usage: "load [-e] [-w]",
+		Short: "print information about cpu usage from boot time",
+		Run:   runPercent,
 	},
 }
 
@@ -113,6 +118,23 @@ func main() {
 	}
 }
 
+func runPercent(cmd *cli.Command, args []string) error {
+	every := cmd.Flag.Duration("e", time.Second, "every")
+	watch := cmd.Flag.Bool("w", false, "watch")
+	if err := cmd.Flag.Parse(args); err != nil {
+		return err
+	}
+	for p := range symon.TotalPercentCPU(*every) {
+		fmt.Fprintf(os.Stdout, "CPU usage: %.2f%%", p)
+		if !*watch {
+			fmt.Fprintln(os.Stdout)
+			break
+		}
+		fmt.Fprint(os.Stdout, "\r")
+	}
+	return nil
+}
+
 func runStat(cmd *cli.Command, args []string) error {
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
@@ -126,12 +148,12 @@ func runStat(cmd *cli.Command, args []string) error {
 	w := tabwriter.NewWriter(os.Stdout, 12, 2, 2, '\t', tabwriter.AlignRight)
 	log.SetOutput(w)
 
-	cs := make([]symon.Core, 0, 1+len(s.Cores))
+	cs := make([]*symon.Core, 0, 1+len(s.Cores))
 	cs = append(cs, s.Main)
 	cs = append(cs, s.Cores...)
 	log.Printf("%5s %6s %6s %6s %6s %6s", " ", "user", "syst", "nice", "idle", "wait")
 	for _, c := range cs {
-		log.Printf(pattern, "%"+c.Label, c.User, c.System, c.Nice, c.Idle, c.Wait)
+		log.Printf(pattern, "%"+c.Label, c.User, c.Syst, c.UserN, c.Idle, c.Wait)
 	}
 	log.Println()
 	log.Printf("boot %s (%s)", s.Boot.Format(time.RFC1123), time.Now().Format(time.RFC1123))
