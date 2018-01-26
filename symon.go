@@ -2,7 +2,6 @@ package symon
 
 import (
 	"bufio"
-	//"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"

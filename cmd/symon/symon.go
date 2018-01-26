@@ -72,32 +72,6 @@ var commands = []*cli.Command{
 	},
 }
 
-type Size int
-
-const (
-	Kilo Size = 1
-	Mega Size = Kilo * 1024
-	Giga Size = Mega * 1024
-)
-
-func (s *Size) String() string {
-	return fmt.Sprint(*s)
-}
-
-func (s *Size) Set(v string) error {
-	switch v {
-	default:
-		return fmt.Errorf("unknow unit %s", v)
-	case "m":
-		*s = Mega
-	case "k", "":
-		*s = Kilo
-	case "g":
-		*s = Giga
-	}
-	return nil
-}
-
 func main() {
 	log.SetFlags(0)
 	usage := func() {
@@ -205,24 +179,53 @@ func runVersion(cmd *cli.Command, args []string) error {
 }
 
 func runMem(cmd *cli.Command, args []string) error {
-	const pattern = "%-9s %9d %9d %9d %9d %9d %9d"
+	const pattern = "%-6s %9.2f %9.2f %9.2f %9.2f %9.2f %9.2f"
 
-	size := Kilo
-	cmd.Flag.Var(&size, "u", "unit size")
+	size := symon.Kilo
+	cmd.Flag.Var(&size, "s", "unit size")
+	watch := cmd.Flag.Bool("w", false, "")
+	total := cmd.Flag.Bool("t", false, "")
+	every := cmd.Flag.Duration("e", time.Second, "")
 	if err := cmd.Flag.Parse(args); err != nil {
-		return err
-	}
-	ms, err := symon.Free()
-	if err != nil {
 		return err
 	}
 	w := tabwriter.NewWriter(os.Stdout, 12, 2, 2, '\t', tabwriter.AlignRight)
 	log.SetOutput(w)
 
-	s := int(size)
-	log.Printf("%9s %9s %9s %9s %9s %9s %9s", " ", "total", "used", "free", "shared", "buf/cache", "available")
-	for _, m := range ms {
-		log.Printf(pattern, m.Device+":", m.Total/s, m.Used()/s, m.Free/s, m.Share/s, (m.Cache+m.Buffers)/s, m.Available/s)
+	if *every <= 0 {
+		*every = time.Second
+	}
+
+	if *watch {
+		fmt.Fprint(os.Stdout, "\033[H\033[2J")
+	}
+	for {
+		ms, err := symon.Free()
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(os.Stdout, "%6s %9s %9s %9s %9s %9s %9s", " ", "total", "used", "free", "shared", "buf/cache", "available")
+		fmt.Fprintln(os.Stdout)
+
+		var n symon.M
+		for _, m := range ms {
+			z := m.Scale(size)
+			fmt.Fprintf(os.Stdout, pattern, z.Device+":", z.Total, z.Used(), z.Free, z.Share, z.Cache+z.Buffers, z.Available)
+			fmt.Fprintln(os.Stdout)
+			if *total {
+				n = n.Cumulate(z)
+			}
+		}
+		if *total {
+			n.Device = "total"
+			fmt.Fprintf(os.Stdout, pattern, n.Device+":", n.Total, n.Used(), n.Free, n.Share, n.Cache+n.Buffers, n.Available)
+			fmt.Fprintln(os.Stdout)
+		}
+		if !*watch {
+			return nil
+		}
+		<-time.After(*every)
+		fmt.Fprint(os.Stdout, "\033[H\033[2J")
 	}
 	return nil
 }
