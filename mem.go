@@ -3,6 +3,7 @@ package symon
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -10,22 +11,72 @@ import (
 	"time"
 )
 
+type Size float64
+
+const (
+	Kilo Size = 1.0
+	Mega Size = Kilo * 1024.0
+	Giga Size = Mega * 1024.0
+)
+
+func (s *Size) String() string {
+	return fmt.Sprint(*s)
+}
+
+func (s *Size) Set(v string) error {
+	switch v {
+	default:
+		return fmt.Errorf("unknow unit %s", v)
+	case "m":
+		*s = Mega
+	case "k", "":
+		*s = Kilo
+	case "g":
+		*s = Giga
+	}
+	return nil
+}
+
 type M struct {
 	Device    string
-	Total     int
-	Free      int
-	Buffers   int
-	Cache     int
-	Available int
-	Share     int
+	Total     float64
+	Free      float64
+	Buffers   float64
+	Cache     float64
+	Available float64
+	Share     float64
+}
+
+func (m M) Cumulate(o M) M {
+	return M{
+		Total:     m.Total + o.Total,
+		Free:      m.Free + o.Free,
+		Buffers:   m.Buffers + o.Buffers,
+		Cache:     m.Cache + o.Cache,
+		Share:     m.Share + o.Share,
+		Available: m.Available + o.Available,
+	}
+}
+
+func (m M) Scale(s Size) M {
+	z := float64(s)
+	return M{
+		Device:    m.Device,
+		Total:     m.Total / z,
+		Free:      m.Free / z,
+		Buffers:   m.Buffers / z,
+		Cache:     m.Cache / z,
+		Share:     m.Share / z,
+		Available: m.Available / z,
+	}
 }
 
 func (m M) MarshalJSON() ([]byte, error) {
 	v := struct {
 		Device string    `json:"device"`
-		Total  int       `json:"total"`
-		Free   int       `json:"free"`
-		Used   int       `json:"used"`
+		Total  float64   `json:"total"`
+		Free   float64   `json:"free"`
+		Used   float64   `json:"used"`
 		When   time.Time `json:"dtstamp"`
 	}{
 		Device: m.Device,
@@ -37,7 +88,7 @@ func (m M) MarshalJSON() ([]byte, error) {
 	return json.Marshal(v)
 }
 
-func (m M) Used() int {
+func (m M) Used() float64 {
 	return m.Total - m.Free - m.Buffers - m.Cache
 }
 
@@ -58,23 +109,23 @@ func Free() ([]M, error) {
 		switch f, v := strings.ToLower(ps[0]), ps[1]; f {
 		case "memtotal":
 			mem.Device = "mem"
-			mem.Total, _ = strconv.Atoi(v)
+			mem.Total, _ = strconv.ParseFloat(v, 64)
 		case "swaptotal":
 			swap.Device = "swap"
-			swap.Total, _ = strconv.Atoi(v)
+			swap.Total, _ = strconv.ParseFloat(v, 64)
 		case "memfree":
-			mem.Free, _ = strconv.Atoi(v)
+			mem.Free, _ = strconv.ParseFloat(v, 64)
 		case "swapfree":
-			swap.Free, _ = strconv.Atoi(v)
+			swap.Free, _ = strconv.ParseFloat(v, 64)
 		case "buffers":
-			mem.Buffers, _ = strconv.Atoi(v)
+			mem.Buffers, _ = strconv.ParseFloat(v, 64)
 		case "cached", "slab":
-			n, _ := strconv.Atoi(v)
+			n, _ := strconv.ParseFloat(v, 64)
 			mem.Cache += n
 		case "memavailable":
-			mem.Available, _ = strconv.Atoi(v)
+			mem.Available, _ = strconv.ParseFloat(v, 64)
 		case "shmem":
-			mem.Share, _ = strconv.Atoi(v)
+			mem.Share, _ = strconv.ParseFloat(v, 64)
 		}
 	}
 	return []M{mem, swap}, nil
