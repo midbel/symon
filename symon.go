@@ -14,6 +14,12 @@ import (
 
 var Tick float64 = 100.0
 
+func init() {
+	if t, err := strconv.ParseFloat(os.Getenv("CLK_TCK"), 64); err == nil {
+		Tick = t
+	}
+}
+
 const proc = "/proc"
 
 type S struct {
@@ -164,8 +170,13 @@ type Core struct {
 // 	return nil, nil
 // }
 
+func (c Core) BusyTime() float64 {
+	return c.TotalTime() - c.IdleTime()
+}
+
 func (c Core) TotalTime() float64 {
-	return c.User + c.UserN + c.Syst + c.Syst + c.Idle + c.Wait + c.Irq + c.Soft + c.Steal + c.Guest + c.GuestN
+	n := c.User + c.UserN + c.Syst + c.Syst + c.Idle + c.Wait + c.Irq + c.Soft + c.Steal
+	return n - c.Guest - c.GuestN
 }
 
 func (c Core) IdleTime() float64 {
