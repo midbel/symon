@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -101,32 +102,45 @@ func Free() ([]M, error) {
 	}
 	defer f.Close()
 
-	var mem, swap M
-	for s := bufio.NewScanner(f); s.Scan(); {
-		ps := strings.FieldsFunc(s.Text(), func(r rune) bool {
-			return r == ':' || r == ' ' || r == '\t'
-		})
-		switch f, v := strings.ToLower(ps[0]), ps[1]; f {
-		case "memtotal":
-			mem.Device = "mem"
-			mem.Total, _ = strconv.ParseFloat(v, 64)
-		case "swaptotal":
-			swap.Device = "swap"
-			swap.Total, _ = strconv.ParseFloat(v, 64)
-		case "memfree":
-			mem.Free, _ = strconv.ParseFloat(v, 64)
-		case "swapfree":
-			swap.Free, _ = strconv.ParseFloat(v, 64)
-		case "buffers":
-			mem.Buffers, _ = strconv.ParseFloat(v, 64)
-		case "cached", "slab":
-			n, _ := strconv.ParseFloat(v, 64)
-			mem.Cache += n
-		case "memavailable":
-			mem.Available, _ = strconv.ParseFloat(v, 64)
-		case "shmem":
-			mem.Share, _ = strconv.ParseFloat(v, 64)
+
+	return <-meminfo(f), nil
+}
+
+func meminfo(r io.ReadSeeker) <-chan []M {
+	q := make(chan []M)
+	go func() {
+		defer close(q)
+		for {
+			var mem, swap M
+			for s := bufio.NewScanner(r); s.Scan(); {
+				ps := strings.FieldsFunc(s.Text(), func(r rune) bool {
+					return r == ':' || r == ' ' || r == '\t'
+				})
+				switch f, v := strings.ToLower(ps[0]), ps[1]; f {
+				case "memtotal":
+					mem.Device = "mem"
+					mem.Total, _ = strconv.ParseFloat(v, 64)
+				case "swaptotal":
+					swap.Device = "swap"
+					swap.Total, _ = strconv.ParseFloat(v, 64)
+				case "memfree":
+					mem.Free, _ = strconv.ParseFloat(v, 64)
+				case "swapfree":
+					swap.Free, _ = strconv.ParseFloat(v, 64)
+				case "buffers":
+					mem.Buffers, _ = strconv.ParseFloat(v, 64)
+				case "cached", "slab", "sreclaimable":
+					n, _ := strconv.ParseFloat(v, 64)
+					mem.Cache += n
+				case "memavailable":
+					mem.Available, _ = strconv.ParseFloat(v, 64)
+				case "shmem":
+					mem.Share, _ = strconv.ParseFloat(v, 64)
+				}
+			}
+			q <- []M{mem, swap}
+			r.Seek(io.SeekStart, 0)
 		}
-	}
-	return []M{mem, swap}, nil
+	}()
+	return q
 }
