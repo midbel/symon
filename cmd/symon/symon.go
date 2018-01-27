@@ -179,7 +179,7 @@ func runVersion(cmd *cli.Command, args []string) error {
 }
 
 func runMem(cmd *cli.Command, args []string) error {
-	const pattern = "%-6s %9.2f %9.2f %9.2f %9.2f %9.2f %9.2f"
+	const pattern = "%-6s\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t\n"
 
 	size := symon.Kilo
 	cmd.Flag.Var(&size, "s", "unit size")
@@ -189,8 +189,7 @@ func runMem(cmd *cli.Command, args []string) error {
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
 	}
-	w := tabwriter.NewWriter(os.Stdout, 12, 2, 2, '\t', tabwriter.AlignRight)
-	log.SetOutput(w)
+	w := tabwriter.NewWriter(os.Stdout, 9, 2, 4, ' ', tabwriter.AlignRight)
 
 	if *every <= 0 {
 		*every = time.Second
@@ -204,23 +203,20 @@ func runMem(cmd *cli.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(os.Stdout, "%6s %9s %9s %9s %9s %9s %9s", " ", "total", "used", "free", "shared", "buf/cache", "available")
-		fmt.Fprintln(os.Stdout)
+		fmt.Fprintf(w, "%-6s\t%s\t%s\t%s\t%s\t%s\t%s\t\n", "dev", "total", "used", "free", "shared", "cached", "avail")
 
 		var n symon.M
 		for _, m := range ms {
 			z := m.Scale(size)
-			fmt.Fprintf(os.Stdout, pattern, z.Device+":", z.Total, z.Used(), z.Free, z.Share, z.Cache+z.Buffers, z.Available)
-			fmt.Fprintln(os.Stdout)
+			fmt.Fprintf(w, pattern, z.Device, z.Total, z.Used(), z.Free, z.Share, z.Cache+z.Buffers, z.Available)
 			if *total {
 				n = n.Cumulate(z)
 			}
 		}
 		if *total {
-			n.Device = "total"
-			fmt.Fprintf(os.Stdout, pattern, n.Device+":", n.Total, n.Used(), n.Free, n.Share, n.Cache+n.Buffers, n.Available)
-			fmt.Fprintln(os.Stdout)
+			fmt.Fprintf(w, pattern, "total", n.Total, n.Used(), n.Free, n.Share, n.Cache+n.Buffers, n.Available)
 		}
+		w.Flush()
 		if !*watch {
 			return nil
 		}
