@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"text/tabwriter"
 	"text/template"
 	"time"
@@ -227,6 +228,7 @@ func runMem(cmd *cli.Command, args []string) error {
 }
 
 func runWho(cmd *cli.Command, args []string) error {
+	const pattern = "%s\t%s\t%s\t%s\t%s\t%s\t\n"
 	all := cmd.Flag.Bool("a", false, "all")
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
@@ -243,9 +245,20 @@ func runWho(cmd *cli.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	sort.Slice(us, func(i, j int) bool {
+		return us[i].Pid < us[j].Pid && us[i].Seconds < us[j].Seconds
+	})
+
+	w := tabwriter.NewWriter(os.Stdout, 9, 2, 4, ' ', tabwriter.AlignRight)
+	fmt.Fprintf(w, pattern, "user", "tty", "origin", "at", "idle", "command")
 	for _, u := range us {
-		log.Printf("%+v", u)
+		t := u.Since()
+		s := t.Format("2006-01-02 15:04")
+		d := time.Since(t).Minutes()
+		h, m := int(d)/60, int(d)%60
+		fmt.Fprintf(w, pattern, u.User, u.Id, u.Hostname(), s, fmt.Sprintf("%dh%02dm", h, m), u.Command())
 	}
+	w.Flush()
 	return nil
 }
 

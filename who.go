@@ -5,8 +5,10 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
+	"io/ioutil"
 	"os"
 	"os/user"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"time"
@@ -83,6 +85,23 @@ func (u U) Hostname() string {
 
 func (u U) Remote() bool {
 	return u.Host != ""
+}
+
+func (u U) Command() string {
+	pid := strconv.Itoa(int(u.Pid))
+	for _, c := range []string{"cmdline", "comm"} {
+		p := filepath.Join(proc, pid, c)
+		if bs, err := ioutil.ReadFile(p); err == nil {
+			bs = bytes.Map(func(r rune) rune {
+				if r == 0 {
+					return ' '
+				}
+				return r
+			}, bs)
+			return string(bs)
+		}
+	}
+	return "***"
 }
 
 func (u U) Since() time.Time {

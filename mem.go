@@ -102,7 +102,6 @@ func Free() ([]M, error) {
 	}
 	defer f.Close()
 
-
 	return <-meminfo(f), nil
 }
 
