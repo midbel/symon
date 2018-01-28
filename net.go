@@ -6,8 +6,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
+	"os/user"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -104,6 +106,7 @@ type C struct {
 	Uid    int    `json:"uid"`
 	Recv   int    `json:"recv"`
 	Send   int    `json:"send"`
+	Command string `json:"command"`
 }
 
 func (c C) MarshalJSON() ([]byte, error) {
@@ -114,6 +117,7 @@ func (c C) MarshalJSON() ([]byte, error) {
 		State  string `json:"state"`
 		Recv   int    `json:"recv"`
 		Send   int    `json:"send"`
+		Command string `json:"command"`
 	}{
 		Proto:  c.Proto,
 		Local:  c.Local,
@@ -121,8 +125,17 @@ func (c C) MarshalJSON() ([]byte, error) {
 		State:  c.Status(),
 		Recv:   c.Recv,
 		Send:   c.Send,
+		Command: c.Command,
 	}
 	return json.Marshal(v)
+}
+
+func (c C) User() string {
+	u, err := user.LookupId(strconv.Itoa(c.Uid))
+	if err == nil {
+		return u.Username
+	}
+	return ""
 }
 
 func (c C) Status() string {
@@ -202,6 +215,8 @@ func netstat(proto string) ([]C, error) {
 	s := bufio.NewScanner(f)
 	s.Scan()
 
+	ns := listCommandsBySockets()
+
 	data := make([]C, 0, 16)
 	for s.Scan() {
 		c := C{Proto: proto}
@@ -211,9 +226,15 @@ func netstat(proto string) ([]C, error) {
 		if s, err := strconv.ParseInt(parts[3], 16, 64); err == nil {
 			c.State = int(s)
 		}
+
 		iob := strings.Split(parts[4], ":")
 		c.Recv, _ = strconv.Atoi(iob[0])
 		c.Send, _ = strconv.Atoi(iob[1])
+		if n, ok := ns[parts[9]]; ok {
+			c.Command = n
+		} else {
+			c.Command = "-"
+		}
 
 		data = append(data, c)
 	}
@@ -241,4 +262,40 @@ func parseAddr(s string) string {
 		p = strconv.Itoa(port)
 	}
 	return net.JoinHostPort(parseHost(h), p)
+}
+
+
+func listCommandsBySockets() map[string]string {
+	const prefix = "socket:"
+	is, err := ioutil.ReadDir(proc)
+	if err != nil {
+		return nil
+	}
+	vs := make(map[string]string)
+	for _, i := range is {
+		if !i.IsDir() {
+			continue
+		}
+		p := filepath.Join(proc, i.Name(), "fd")
+		is, err := ioutil.ReadDir(p)
+		if err != nil  {
+			continue
+		}
+		cmd := i.Name() + "/-"
+		if bs, err := ioutil.ReadFile(filepath.Join(proc, i.Name(), "comm")); err == nil {
+			cmd = i.Name() + "/" + string(bs)
+		}
+		cmd = strings.TrimSpace(cmd)
+		for _, i := range is {
+			n, err := os.Readlink(filepath.Join(p, i.Name()))
+			if err != nil {
+				break
+			}
+			if !strings.HasPrefix(n, prefix) {
+				continue
+			}
+			vs[n[len(prefix)+1:len(n)-1]] = cmd
+		}
+	}
+	return vs
 }

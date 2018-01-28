@@ -162,12 +162,12 @@ func runNetstat(cmd *cli.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	const pattern = "%s\t%d\t%d\t%s\t%s\t%s\t%v\t\n"
+	const pattern = "%s\t%d\t%d\t%s\t%s\t%s\t%s\t%s\n"
 
 	w := tabwriter.NewWriter(os.Stdout, 12, 2, 2, ' ', 0)
-	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%v\t\n", "proto", "recv", "send", "local", "remote", "state", "pid/cmd")
+	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",  "proto", "recv", "send", "local", "remote", "state", "user", "pid/cmd")
 	for _, c := range cs {
-		fmt.Fprintf(w, pattern, c.Proto, c.Recv, c.Send, c.Local, c.Remote, c.Status(), "-")
+		fmt.Fprintf(w, pattern, c.Proto, c.Recv, c.Send, c.Local, c.Remote, c.Status(), c.User(), c.Command)
 	}
 	w.Flush()
 	return nil
