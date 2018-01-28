@@ -71,6 +71,11 @@ var commands = []*cli.Command{
 		Short: "print information about cpu usage from boot time",
 		Run:   runPercent,
 	},
+	{
+		Usage: "process",
+		Short: "print process currently running on a system",
+		Run: runProcess,
+	},
 }
 
 func main() {
@@ -131,6 +136,29 @@ func runStat(cmd *cli.Command, args []string) error {
 	}
 	w.Flush()
 
+	return nil
+}
+
+func runProcess(cmd *cli.Command, args []string) error {
+	//all := cmd.Flag.Bool("a", false, "all")
+	if err := cmd.Flag.Parse(args); err != nil {
+		return err
+	}
+	const pattern = "%s\t%d\t%d\t%.2f\t%.2f\t%s\t%s\t%s\n"
+	w := tabwriter.NewWriter(os.Stdout, 12, 2, 2, ' ', 0)
+	defer w.Flush()
+
+	ps, err := symon.Process()
+	if err != nil {
+		return err
+	}
+	sort.Slice(ps, func(i, j int) bool {
+		return ps[i].Pid <= ps[j].Pid
+	})
+	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", "USER", "PID", "PPID", "%CPU", "%MEM", "TTY", "STAT", "CMD")
+	for _, p := range ps {
+		fmt.Fprintf(w, pattern, p.User(), p.Pid, p.Parent, 0.0, 0.0, "?", p.State, p.Command())
+	}
 	return nil
 }
 
