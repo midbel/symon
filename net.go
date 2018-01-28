@@ -99,32 +99,32 @@ const (
 )
 
 type C struct {
-	Proto  string `json:"protocol"`
-	Local  string `json:"local"`
-	Remote string `json:"remote"`
-	State  int    `json:"state"`
-	Uid    int    `json:"uid"`
-	Recv   int    `json:"recv"`
-	Send   int    `json:"send"`
+	Proto   string `json:"protocol"`
+	Local   string `json:"local"`
+	Remote  string `json:"remote"`
+	State   int    `json:"state"`
+	Uid     int    `json:"uid"`
+	Recv    int    `json:"recv"`
+	Send    int    `json:"send"`
 	Command string `json:"command"`
 }
 
 func (c C) MarshalJSON() ([]byte, error) {
 	v := struct {
-		Proto  string `json:"protocol"`
-		Local  string `json:"local"`
-		Remote string `json:"remote"`
-		State  string `json:"state"`
-		Recv   int    `json:"recv"`
-		Send   int    `json:"send"`
+		Proto   string `json:"protocol"`
+		Local   string `json:"local"`
+		Remote  string `json:"remote"`
+		State   string `json:"state"`
+		Recv    int    `json:"recv"`
+		Send    int    `json:"send"`
 		Command string `json:"command"`
 	}{
-		Proto:  c.Proto,
-		Local:  c.Local,
-		Remote: c.Remote,
-		State:  c.Status(),
-		Recv:   c.Recv,
-		Send:   c.Send,
+		Proto:   c.Proto,
+		Local:   c.Local,
+		Remote:  c.Remote,
+		State:   c.Status(),
+		Recv:    c.Recv,
+		Send:    c.Send,
 		Command: c.Command,
 	}
 	return json.Marshal(v)
@@ -190,10 +190,11 @@ func Netstat(ps ...string) ([]C, error) {
 		ps = []string{"tcp", "udp", "tcp", "udp6"}
 	}
 	vs := make([]C, 0, 24)
+	ns := listCommandsBySockets()
 	for _, p := range ps {
 		switch p {
 		case "tcp", "tcp6", "udp", "udp6":
-			cs, err := netstat(p)
+			cs, err := netstat(p, ns)
 			if err != nil {
 				return nil, err
 			}
@@ -206,7 +207,7 @@ func Netstat(ps ...string) ([]C, error) {
 	return vs, nil
 }
 
-func netstat(proto string) ([]C, error) {
+func netstat(proto string, ns map[string]string) ([]C, error) {
 	f, err := os.Open(filepath.Join(proc, "net", proto))
 	if err != nil {
 		return nil, err
@@ -214,8 +215,6 @@ func netstat(proto string) ([]C, error) {
 	defer f.Close()
 	s := bufio.NewScanner(f)
 	s.Scan()
-
-	ns := listCommandsBySockets()
 
 	data := make([]C, 0, 16)
 	for s.Scan() {
@@ -264,7 +263,6 @@ func parseAddr(s string) string {
 	return net.JoinHostPort(parseHost(h), p)
 }
 
-
 func listCommandsBySockets() map[string]string {
 	const prefix = "socket:"
 	is, err := ioutil.ReadDir(proc)
@@ -278,14 +276,10 @@ func listCommandsBySockets() map[string]string {
 		}
 		p := filepath.Join(proc, i.Name(), "fd")
 		is, err := ioutil.ReadDir(p)
-		if err != nil  {
+		if err != nil {
 			continue
 		}
-		cmd := i.Name() + "/-"
-		if bs, err := ioutil.ReadFile(filepath.Join(proc, i.Name(), "comm")); err == nil {
-			cmd = i.Name() + "/" + string(bs)
-		}
-		cmd = strings.TrimSpace(cmd)
+		cmd := processName(i.Name(), false)
 		for _, i := range is {
 			n, err := os.Readlink(filepath.Join(p, i.Name()))
 			if err != nil {

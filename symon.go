@@ -2,6 +2,7 @@ package symon
 
 import (
 	"bufio"
+	"bytes"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -45,4 +46,28 @@ func Version() (string, string, error) {
 		return "", "", err
 	}
 	return strings.Join(infos, " "), strings.TrimSpace(string(bs)), nil
+}
+
+func processName(pid string, c bool) string {
+	var (
+		bs  []byte
+		err error
+	)
+	if !c {
+		bs, err = ioutil.ReadFile(filepath.Join(proc, pid, "cmdline"))
+		if err == nil {
+			bs = bytes.Map(func(r rune) rune {
+				if r == 0 {
+					return ' '
+				}
+				return r
+			}, bs)
+			return strings.TrimSpace(string(bs))
+		}
+	}
+	bs, err = ioutil.ReadFile(filepath.Join(proc, pid, "comm"))
+	if err == nil {
+		return strings.TrimSpace(string(bs))
+	}
+	return ""
 }

@@ -2,9 +2,7 @@ package symon
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -75,26 +73,7 @@ func (p P) Device() string {
 }
 
 func (p P) Command() string {
-	path := filepath.Join(proc, strconv.Itoa(p.Pid), "cmdline")
-	if buf, err := ioutil.ReadFile(path); err == nil {
-		parts := make([]string, 0, 12)
-		for {
-			if ix := bytes.IndexByte(buf, 0x0); ix >= 0 {
-				str := strings.TrimSpace(string(buf[:ix]))
-				if len(str) > 0 {
-					parts = append(parts, str)
-				}
-				buf = buf[ix+1:]
-			} else {
-				break
-			}
-		}
-		if len(parts) == 0 || len(parts) >= 5 {
-			return p.Name
-		}
-		return strings.Join(parts, " ")
-	}
-	return p.Name
+	return processName(strconv.Itoa(p.Pid), true)
 }
 
 //Process returns the list of process currently exectued on a system. It tries
