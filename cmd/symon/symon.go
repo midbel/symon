@@ -114,26 +114,22 @@ func runStat(cmd *cli.Command, args []string) error {
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
 	}
-	const pattern = "%-5s %6.2f %6.2f %6.2f %6.2f %6.2f"
+	const pattern = "%s\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t\n"
 
 	s, err := symon.Stat()
 	if err != nil {
 		return err
 	}
-	w := tabwriter.NewWriter(os.Stdout, 12, 2, 2, '\t', 0)
-	log.SetOutput(w)
+	w := tabwriter.NewWriter(os.Stdout, 12, 2, 2, ' ', 0)
 
 	cs := make([]*symon.Core, 0, 1+len(s.Cores))
 	cs = append(cs, s.Main)
 	cs = append(cs, s.Cores...)
-	log.Printf("%5s %6s %6s %6s %6s %6s", " ", "user", "syst", "nice", "idle", "wait")
+	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t\n", " ", "user", "syst", "nice", "idle", "wait")
 	for _, c := range cs {
-		log.Printf(pattern, "%"+c.Label, c.User, c.Syst, c.UserN, c.Idle, c.Wait)
+		fmt.Fprintf(w, pattern, "%"+c.Label, c.User, c.Syst, c.UserN, c.Idle, c.Wait)
 	}
-	log.Println()
-	log.Printf("boot %s (%s)", s.Boot.Format(time.RFC1123), time.Now().Format(time.RFC1123))
-	log.Printf("running  %d", s.Running)
-	log.Printf("waiting  %d", s.Waiting)
+	w.Flush()
 
 	return nil
 }
@@ -157,6 +153,7 @@ func runRoutes(cmd *cli.Command, args []string) error {
 }
 
 func runNetstat(cmd *cli.Command, args []string) error {
+
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
 	}
