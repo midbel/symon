@@ -153,17 +153,23 @@ func runRoutes(cmd *cli.Command, args []string) error {
 }
 
 func runNetstat(cmd *cli.Command, args []string) error {
-
+	var ls symon.Layers
+	cmd.Flag.Var(&ls, "p", "protocol")
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
 	}
-	cs, err := symon.Netstat()
+	cs, err := symon.Netstat([]string(ls)...)
 	if err != nil {
 		return err
 	}
+	const pattern = "%s\t%d\t%d\t%s\t%s\t%s\t%v\t\n"
+
+	w := tabwriter.NewWriter(os.Stdout, 12, 2, 2, ' ', 0)
+	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%v\t\n", "proto", "recv", "send", "local", "remote", "state", "pid/cmd")
 	for _, c := range cs {
-		log.Printf("%+v", c)
+		fmt.Fprintf(w, pattern, c.Proto, c.Recv, c.Send, c.Local, c.Remote, c.Status(), "-")
 	}
+	w.Flush()
 	return nil
 }
 

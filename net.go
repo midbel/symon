@@ -14,6 +14,24 @@ import (
 	"strings"
 )
 
+type Layers []string
+
+func (a *Layers) String() string {
+	return fmt.Sprint(*a)
+}
+
+func (a *Layers) Set(v string) error {
+	for _, v := range strings.Split(v, ",") {
+		switch v := strings.ToLower(v); v {
+		case "udp", "tcp", "unix", "tcp6", "udp6":
+			*a = append(*a, v)
+		default:
+			return fmt.Errorf("unknown protocol %s", v)
+		}
+	}
+	return nil
+}
+
 type service struct {
 	port, proto, name string
 	aliases           []string
@@ -108,11 +126,8 @@ func (c C) MarshalJSON() ([]byte, error) {
 }
 
 func (c C) Status() string {
-	if c.Proto != "tcp" {
-		return ""
-	}
 	if ix := c.State - 1; ix > len(states) {
-		return "unknown"
+		return "-"
 	} else {
 		return states[ix]
 	}
@@ -157,25 +172,25 @@ func Routes() ([]R, error) {
 }
 
 //Netstat gives the list of connections that are known by a system.
-func Netstat(proto ...string) ([]C, error) {
-	if len(proto) == 0 {
-		proto = []string{"tcp", "udp"}
+func Netstat(ps ...string) ([]C, error) {
+	if len(ps) == 0 {
+		ps = []string{"tcp", "udp", "tcp", "udp6"}
 	}
-	data := make([]C, 0, 24)
-	for _, p := range proto {
+	vs := make([]C, 0, 24)
+	for _, p := range ps {
 		switch p {
 		case "tcp", "tcp6", "udp", "udp6":
 			cs, err := netstat(p)
 			if err != nil {
 				return nil, err
 			}
-			data = append(data, cs...)
+			vs = append(vs, cs...)
 		case "unix":
 		default:
 			return nil, fmt.Errorf("unknown protocol %s", p)
 		}
 	}
-	return data, nil
+	return vs, nil
 }
 
 func netstat(proto string) ([]C, error) {
@@ -189,9 +204,6 @@ func netstat(proto string) ([]C, error) {
 
 	data := make([]C, 0, 16)
 	for s.Scan() {
-		if err := s.Err(); err != nil {
-			return nil, err
-		}
 		c := C{Proto: proto}
 		parts := strings.Fields(s.Text())
 
