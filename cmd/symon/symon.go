@@ -120,7 +120,7 @@ func runStat(cmd *cli.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	w := tabwriter.NewWriter(os.Stdout, 12, 2, 2, '\t', tabwriter.AlignRight)
+	w := tabwriter.NewWriter(os.Stdout, 12, 2, 2, '\t', 0)
 	log.SetOutput(w)
 
 	cs := make([]*symon.Core, 0, 1+len(s.Cores))
@@ -146,9 +146,13 @@ func runRoutes(cmd *cli.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	w := tabwriter.NewWriter(os.Stdout, 12, 2, 2, ' ', 0)
+	const pattern = "%s\t%s\t%s\t%s\t\n"
+	fmt.Fprintf(w, pattern, "destination", "gateway", "mask", "interface")
 	for _, r := range rs {
-		log.Printf("%+v", r)
+		fmt.Fprintf(w, pattern, r.Address, r.Gateway, r.Mask, r.Interface)
 	}
+	w.Flush()
 	return nil
 }
 
@@ -190,7 +194,7 @@ func runMem(cmd *cli.Command, args []string) error {
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
 	}
-	w := tabwriter.NewWriter(os.Stdout, 9, 2, 4, ' ', tabwriter.AlignRight)
+	w := tabwriter.NewWriter(os.Stdout, 9, 2, 4, ' ', 0)
 
 	if *every <= 0 {
 		*every = time.Second
@@ -249,7 +253,7 @@ func runWho(cmd *cli.Command, args []string) error {
 		return us[i].Pid < us[j].Pid && us[i].Seconds < us[j].Seconds
 	})
 
-	w := tabwriter.NewWriter(os.Stdout, 9, 2, 4, ' ', tabwriter.AlignRight)
+	w := tabwriter.NewWriter(os.Stdout, 9, 2, 4, ' ', 0)
 	fmt.Fprintf(w, pattern, "user", "tty", "origin", "at", "idle", "command")
 	for _, u := range us {
 		t := u.Since()
