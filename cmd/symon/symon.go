@@ -74,7 +74,7 @@ var commands = []*cli.Command{
 	{
 		Usage: "process",
 		Short: "print process currently running on a system",
-		Run: runProcess,
+		Run:   runProcess,
 	},
 }
 
@@ -144,7 +144,7 @@ func runProcess(cmd *cli.Command, args []string) error {
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
 	}
-	const pattern = "%s\t%d\t%d\t%.2f\t%.2f\t%s\t%s\t%s\n"
+	const pattern = "%s\t%d\t%d\t%s\t%.2f\t%.2f\t%s\t%s\t%s\n"
 	w := tabwriter.NewWriter(os.Stdout, 12, 2, 2, ' ', 0)
 	defer w.Flush()
 
@@ -152,12 +152,9 @@ func runProcess(cmd *cli.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	sort.Slice(ps, func(i, j int) bool {
-		return ps[i].Pid <= ps[j].Pid
-	})
-	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", "USER", "PID", "PPID", "%CPU", "%MEM", "TTY", "STAT", "CMD")
+	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", "USER", "PID", "PPID", "SINCE", "%CPU", "%MEM", "TTY", "STAT", "CMD")
 	for _, p := range ps {
-		fmt.Fprintf(w, pattern, p.User(), p.Pid, p.Parent, 0.0, 0.0, "?", p.State, p.Command())
+		fmt.Fprintf(w, pattern, p.User(), p.Pid, p.Parent, formatDuration(p.Uptime), p.Core, 0.0, "?", p.State, p.Command())
 	}
 	return nil
 }
@@ -289,9 +286,8 @@ func runWho(cmd *cli.Command, args []string) error {
 	for _, u := range us {
 		t := u.Since()
 		s := t.Format("2006-01-02 15:04")
-		d := time.Since(t).Minutes()
-		h, m := int(d)/60, int(d)%60
-		fmt.Fprintf(w, pattern, u.User, u.Id, u.Hostname(), s, fmt.Sprintf("%dh%02dm", h, m), u.Command())
+		d := time.Since(t)
+		fmt.Fprintf(w, pattern, u.User, u.Id, u.Hostname(), s, formatDuration(d), u.Command())
 	}
 	w.Flush()
 	return nil
@@ -313,4 +309,10 @@ func runServe(cmd *cli.Command, args []string) error {
 	http.Handle("/process/", rest.Process())
 
 	return http.ListenAndServe(*addr, nil)
+}
+
+func formatDuration(d time.Duration) string {
+	z := d.Minutes()
+	h, m := int(z)/60, int(z)%60
+	return fmt.Sprintf("%dh%02dm", h, m)
 }

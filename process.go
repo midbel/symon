@@ -3,21 +3,27 @@ package symon
 import (
 	"bufio"
 	"encoding/json"
+	"io/ioutil"
 	"os"
 	"os/user"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 )
 
 type P struct {
-	Name   string `json:"process"`
-	State  string `json:"state"`
-	Uid    int    `json:"uid"`
-	Gid    int    `json:"gid"`
-	Pid    int    `json:"pid"`
-	Parent int    `json:"ppid"`
+	Name   string        `json:"process"`
+	State  string        `json:"state"`
+	Uid    int           `json:"uid"`
+	Gid    int           `json:"gid"`
+	Pid    int           `json:"pid"`
+	Parent int           `json:"ppid"`
+	Mem    float64       `json:"mem"`
+	Core   float64       `json:"cpu"`
+	Uptime time.Duration `json:"uptime"`
 }
 
 func (p P) MarshalJSON() ([]byte, error) {
@@ -80,6 +86,8 @@ func (p P) Command() string {
 //to copy the behavior of the `ps` command.
 func Process() ([]P, error) {
 	data := make([]P, 0, 100)
+
+	var wg sync.WaitGroup
 	err := filepath.Walk(proc, func(path string, i os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -123,11 +131,49 @@ func Process() ([]P, error) {
 				p.Gid, _ = strconv.Atoi(parts[0])
 			}
 		}
-		data = append(data, p)
+		wg.Add(1)
+		go func(v *P) {
+			v.Core, v.Uptime = readProcessStats(v.Pid, 5, time.Millisecond*10)
+			data = append(data, *v)
+			wg.Done()
+		}(&p)
 		return nil
 	})
+	wg.Wait()
 	sort.Slice(data, func(i, j int) bool {
 		return data[i].Pid < data[j].Pid
 	})
 	return data, err
+}
+
+func readProcessStats(p, c int, e time.Duration) (float64, time.Duration) {
+	t := time.NewTicker(e)
+	defer t.Stop()
+
+	var (
+		pu, ps, ct float64
+		pt         time.Time
+		up         time.Duration
+	)
+	boot, _ := Uptime()
+	for i := 0; i < c; i++ {
+		bs, err := ioutil.ReadFile(filepath.Join(proc, strconv.Itoa(p), "stat"))
+		if err != nil {
+			return 0, 0
+		}
+		fs := strings.Fields(string(bs))
+		u, _ := strconv.ParseFloat(fs[13], 64)
+		s, _ := strconv.ParseFloat(fs[14], 64)
+
+		w := <-t.C
+		u, s = u/Tick, s/Tick
+		dv, dt := (u-pu)+(s-ps), w.Sub(pt)
+
+		ct += 100 * (dv / dt.Seconds())
+		pu, ps, pt = u, s, w
+
+		j, _ := strconv.ParseFloat(fs[21], 64)
+		up = time.Duration(j/100) * time.Second
+	}
+	return ct / float64(c), time.Since(boot.Add(up))
 }
