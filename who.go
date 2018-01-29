@@ -5,10 +5,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"os/user"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"time"
@@ -41,6 +39,7 @@ func init() {
 	}
 }
 
+//An user record as found in /var/log/lastlog
 type L struct {
 	When time.Time `json:"timestamp"`
 	User string    `json:"username"`
@@ -49,6 +48,7 @@ type L struct {
 	Host []byte    `json:"-"`
 }
 
+//An user record as found in utmp and wtmp files
 type U struct {
 	Record  uint32
 	Pid     uint32
@@ -59,6 +59,7 @@ type U struct {
 	Seconds uint32
 }
 
+//MarshalJSON Implements the json.Marshaler MarshalJSON method.
 func (u U) MarshalJSON() ([]byte, error) {
 	v := struct {
 		Record string    `json:"record"`
@@ -88,20 +89,7 @@ func (u U) Remote() bool {
 }
 
 func (u U) Command() string {
-	pid := strconv.Itoa(int(u.Pid))
-	for _, c := range []string{"cmdline", "comm"} {
-		p := filepath.Join(proc, pid, c)
-		if bs, err := ioutil.ReadFile(p); err == nil {
-			bs = bytes.Map(func(r rune) rune {
-				if r == 0 {
-					return ' '
-				}
-				return r
-			}, bs)
-			return string(bs)
-		}
-	}
-	return "***"
+	return processName(strconv.Itoa(int(u.Pid)), false)
 }
 
 func (u U) Since() time.Time {
