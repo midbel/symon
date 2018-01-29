@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"text/tabwriter"
 	"text/template"
@@ -141,6 +142,7 @@ func runStat(cmd *cli.Command, args []string) error {
 
 func runProcess(cmd *cli.Command, args []string) error {
 	//all := cmd.Flag.Bool("a", false, "all")
+	irix := cmd.Flag.Bool("x", false, "")
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
 	}
@@ -154,6 +156,9 @@ func runProcess(cmd *cli.Command, args []string) error {
 	}
 	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", "USER", "PID", "PPID", "SINCE", "%CPU", "%MEM", "TTY", "STAT", "CMD")
 	for _, p := range ps {
+		if *irix {
+			p.Core /= float64(runtime.NumCPU())
+		}
 		fmt.Fprintf(w, pattern, p.User(), p.Pid, p.Parent, formatDuration(p.Uptime), p.Core, 0.0, "?", p.State, p.Command())
 	}
 	return nil
@@ -253,8 +258,8 @@ func runMem(cmd *cli.Command, args []string) error {
 		if !*watch {
 			return nil
 		}
-		<-time.After(*every)
 		fmt.Fprint(os.Stdout, "\033[H\033[2J")
+		<-time.After(*every)
 	}
 	return nil
 }

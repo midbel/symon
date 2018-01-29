@@ -173,7 +173,7 @@ func readProcessStats(p, c int, e time.Duration) (float64, time.Duration) {
 		pu, ps, pt = u, s, w
 
 		j, _ := strconv.ParseFloat(fs[21], 64)
-		up = time.Duration(j/100) * time.Second
+		up = time.Duration(j/Tick) * time.Second
 	}
 	return ct / float64(c), time.Since(boot.Add(up))
 }
