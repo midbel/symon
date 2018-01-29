@@ -5,10 +5,13 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/user"
 	"sort"
 	"strconv"
+	"strings"
+	"sync"
 	"time"
 )
 
@@ -16,6 +19,8 @@ const (
 	lastRecordSize = 292
 	utmpRecordSize = 384
 )
+
+var Epoch = time.Unix(0, 0)
 
 var hostname string
 
@@ -42,10 +47,21 @@ func init() {
 //An user record as found in /var/log/lastlog
 type L struct {
 	When time.Time `json:"timestamp"`
-	User string    `json:"username"`
 	Uid  int       `json:"uid"`
 	Line string    `json:"line"`
 	Host []byte    `json:"-"`
+}
+
+func (l L) Found() bool {
+	return !l.When.IsZero() && l.When != Epoch
+}
+
+func (l L) User() string {
+	u, err := user.LookupId(strconv.Itoa(l.Uid))
+	if err != nil {
+		return fmt.Sprint(l.Uid)
+	}
+	return u.Username
 }
 
 //An user record as found in utmp and wtmp files
@@ -128,26 +144,36 @@ func Last() ([]L, error) {
 	})
 
 	var ls []L
+	var wg sync.WaitGroup
 	for i := 0; s.Scan(); i++ {
-		r := bytes.NewBuffer(s.Bytes())
-		var cs uint32
-		binary.Read(r, binary.LittleEndian, &cs)
-		if cs == 0 {
-			continue
-		}
-		u, err := user.LookupId(strconv.Itoa(i))
-		if err != nil {
-			return nil, err
-		}
-		l := L{
-			When: time.Unix(int64(cs), 0),
-			User: u.Username,
-			Uid:  i,
-			Line: clean(r.Next(32)),
-			Host: r.Next(256),
-		}
-		ls = append(ls, l)
+		wg.Add(1)
+		go func(n int, bs []byte) {
+			l, err := lastlog(n, bs)
+			if err == nil {
+				ls = append(ls, *l)
+			}
+			wg.Done()
+		}(i, s.Bytes())
+		// r := bytes.NewBuffer(s.Bytes())
+		// var cs uint32
+		// binary.Read(r, binary.LittleEndian, &cs)
+		// if cs == 0 {
+		// 	continue
+		// }
+		// u, err := user.LookupId(strconv.Itoa(i))
+		// if err != nil {
+		// 	return nil, err
+		// }
+		// l := L{
+		// 	When: time.Unix(int64(cs), 0),
+		// 	User: u.Username,
+		// 	Uid:  i,
+		// 	Line: clean(r.Next(32)),
+		// 	Host: r.Next(256),
+		// }
+		// ls = append(ls, l)
 	}
+	wg.Wait()
 	return ls, nil
 }
 
@@ -199,9 +225,31 @@ func scan(path string) ([]U, error) {
 	return us, nil
 }
 
+func lastlog(i int, bs []byte) (*L, error) {
+	if _, err := user.LookupId(strconv.Itoa(i)); err != nil {
+		return nil, err
+	}
+	r := bytes.NewBuffer(bs)
+
+	var s uint32
+	binary.Read(r, binary.LittleEndian, &s)
+
+	l := &L{
+		Uid:  i,
+		Line: clean(r.Next(32)),
+		Host: bytes.Trim(r.Next(256), "\x00"),
+	}
+
+	if s > 0 {
+		l.When = time.Unix(int64(s), 0)
+	}
+	return l, nil
+}
+
 func clean(bs []byte) string {
 	if len(bs) == 0 {
 		return ""
 	}
-	return string(bytes.Trim(bs, "\x00"))
+	bs = bytes.Trim(bs, "\x00")
+	return strings.TrimSpace(string(bs))
 }
