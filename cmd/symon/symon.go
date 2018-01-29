@@ -77,6 +77,11 @@ var commands = []*cli.Command{
 		Short: "print process currently running on a system",
 		Run:   runProcess,
 	},
+	{
+		Usage: "lastlog",
+		Short: "print the more recent login of users known by the system",
+		Run: runLastlog,
+	},
 }
 
 func main() {
@@ -97,6 +102,22 @@ func main() {
 	if err := cli.Run(commands, usage, nil); err != nil {
 		log.Fatalln(err)
 	}
+}
+
+func runLastlog(cmd *cli.Command, args []string) error {
+	if err := cmd.Flag.Parse(args); err != nil {
+		return err
+	}
+	as, err := symon.Last()
+	if err != nil {
+		return err
+	}
+	w := tabwriter.NewWriter(os.Stdout, 12, 2, 2, ' ', 0)
+	defer w.Flush()
+	for _, a := range as {
+		fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%s\n", a.When, a.User, a.Uid, string(a.Host), a.Line)
+	}
+	return nil
 }
 
 func runPercent(cmd *cli.Command, args []string) error {
