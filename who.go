@@ -53,7 +53,7 @@ type L struct {
 }
 
 func (l L) Found() bool {
-	return !l.When.IsZero() && l.When != Epoch
+	return !l.When.IsZero()
 }
 
 func (l L) User() string {
@@ -140,7 +140,9 @@ func Last() ([]L, error) {
 		if len(bs) < lastRecordSize {
 			return 0, nil, nil
 		}
-		return lastRecordSize, bs[:lastRecordSize], nil
+		vs := make([]byte, lastRecordSize)
+		copy(vs, bs[:lastRecordSize])
+		return lastRecordSize, vs, nil
 	})
 
 	var ls []L
@@ -154,24 +156,6 @@ func Last() ([]L, error) {
 			}
 			wg.Done()
 		}(i, s.Bytes())
-		// r := bytes.NewBuffer(s.Bytes())
-		// var cs uint32
-		// binary.Read(r, binary.LittleEndian, &cs)
-		// if cs == 0 {
-		// 	continue
-		// }
-		// u, err := user.LookupId(strconv.Itoa(i))
-		// if err != nil {
-		// 	return nil, err
-		// }
-		// l := L{
-		// 	When: time.Unix(int64(cs), 0),
-		// 	User: u.Username,
-		// 	Uid:  i,
-		// 	Line: clean(r.Next(32)),
-		// 	Host: r.Next(256),
-		// }
-		// ls = append(ls, l)
 	}
 	wg.Wait()
 	return ls, nil
