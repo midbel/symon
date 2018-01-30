@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/user"
 	"sort"
@@ -18,6 +19,12 @@ import (
 const (
 	lastRecordSize = 292
 	utmpRecordSize = 384
+)
+
+const (
+	lastFile = "/var/log/lastlog"
+	utmpFile = "/var/run/utmp"
+	wtmpFile = "/var/log/wtmp"
 )
 
 var Epoch = time.Unix(0, 0)
@@ -119,43 +126,51 @@ func (u U) Type() string {
 	return records[u.Record]
 }
 
-func Fail() error {
-	f, err := os.Open("/var/log/faillog")
-	if err != nil {
-		return err
+func Logins() (int, int) {
+	var c, a int
+
+	ds := []struct {
+			Count *int
+			File  string
+	} {
+		{File: utmpFile, Count: &c},
+		{File: wtmpFile, Count: &a},
 	}
-	defer f.Close()
-	return nil
+	for _, d := range ds {
+		i, err := os.Stat(d.File)
+		if err != nil {
+			return 0, 0
+		}
+		*d.Count = int(i.Size()/utmpRecordSize)
+	}
+	return c, a
 }
 
 //Last gives the users currently logged in on a system.
 func Last() ([]L, error) {
-	f, err := os.Open("/var/log/lastlog")
+	f, err := os.Open(lastFile)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
-	s := bufio.NewScanner(f)
-	s.Split(func(bs []byte, ateof bool) (int, []byte, error) {
-		if len(bs) < lastRecordSize {
-			return 0, nil, nil
-		}
-		vs := make([]byte, lastRecordSize)
-		copy(vs, bs[:lastRecordSize])
-		return lastRecordSize, vs, nil
-	})
 
-	var ls []L
-	var wg sync.WaitGroup
-	for i := 0; s.Scan(); i++ {
+	var (
+		ls []L
+		wg sync.WaitGroup
+	)
+	for i, r := 0, bufio.NewReader(f); ; i++ {
+		w := new(bytes.Buffer)
+		if _, err := io.CopyN(w, r, int64(lastRecordSize)); err != nil {
+			break
+		}
 		wg.Add(1)
-		go func(n int, bs []byte) {
-			l, err := lastlog(n, bs)
+		go func(n int, r *bytes.Buffer) {
+			l, err := lastlog(n, r)
 			if err == nil {
 				ls = append(ls, *l)
 			}
 			wg.Done()
-		}(i, s.Bytes())
+		}(i, w)
 	}
 	wg.Wait()
 	return ls, nil
@@ -164,16 +179,16 @@ func Last() ([]L, error) {
 //Wtmp gives the full list from the startup of a system of users logging. It uses
 ///var/log/wtmp.
 func Wtmp() ([]U, error) {
-	return scan("/var/log/wtmp")
+	return scanWho(wtmpFile)
 }
 
 //Wtmp gives the full list from the startup of a system of users logging. It uses
 ///var/run/utmp.
 func Utmp() ([]U, error) {
-	return scan("/var/run/utmp")
+	return scanWho(utmpFile)
 }
 
-func scan(path string) ([]U, error) {
+func scanWho(path string) ([]U, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -209,11 +224,10 @@ func scan(path string) ([]U, error) {
 	return us, nil
 }
 
-func lastlog(i int, bs []byte) (*L, error) {
+func lastlog(i int, r *bytes.Buffer) (*L, error) {
 	if _, err := user.LookupId(strconv.Itoa(i)); err != nil {
 		return nil, err
 	}
-	r := bytes.NewBuffer(bs)
 
 	var s uint32
 	binary.Read(r, binary.LittleEndian, &s)

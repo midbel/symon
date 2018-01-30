@@ -82,6 +82,23 @@ func (p P) Command() string {
 	return processName(strconv.Itoa(p.Pid), true)
 }
 
+func PIDs() []int {
+	is, err := ioutil.ReadDir(proc)
+	if err != nil {
+		return nil
+	}
+	ps := make([]int, 0, len(is))
+	for _, i := range is {
+		if !i.IsDir() {
+			continue
+		}
+		if v, err := strconv.Atoi(i.Name()); err == nil {
+			ps = append(ps, v)
+		}
+	}
+	return ps
+}
+
 //Process returns the list of process currently exectued on a system. It tries
 //to copy the behavior of the `ps` command.
 func Process() ([]P, error) {

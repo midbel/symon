@@ -112,15 +112,15 @@ func runLastlog(cmd *cli.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	sort.Slice(as, func(i, j int) bool { return as[i].Uid < as[j].Uid })
+	sort.SliceStable(as, func(i, j int) bool { return as[i].Uid < as[j].Uid })
 	w := tabwriter.NewWriter(os.Stdout, 12, 2, 2, ' ', 0)
 	defer w.Flush()
 	for _, a := range as {
 		if !a.Found() {
-			fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", a.Uid, a.User(), "-", "**never logged in**")
+			fmt.Fprintf(w, "%s\t%s\t%s\n", a.User(), "-", "**never logged in**")
 			continue
 		}
-		fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", a.Uid, a.User(), a.Line, a.When)
+		fmt.Fprintf(w, "%s\t%s\t%s\n", a.User(), a.Line, a.When)
 	}
 	return nil
 }
