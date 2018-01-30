@@ -34,24 +34,6 @@ func Netstat() http.Handler {
 	f := func(r *http.Request) (interface{}, error) {
 		q := r.URL.Query()
 		return symon.Netstat(q["protocol"]...)
-		// if err != nil {
-		// 	return nil, err
-		// }
-		// if q.Get("resolve") != "" {
-		// 	var h string
-		// 	for i, s := range ns {
-		// 		h, _, _ = net.SplitHostPort(s.Local)
-		// 		if vs, err := net.LookupAddr(h); err == nil && len(vs) > 0 {
-		// 			s.Local = vs[0]
-		// 		}
-		// 		h, _, _ = net.SplitHostPort(s.Remote)
-		// 		if vs, err := net.LookupAddr(h); err == nil && len(vs) > 0 {
-		// 			s.Local = vs[0]
-		// 		}
-		// 		ns[i] = s
-		// 	}
-		// }
-		// return ns, err
 	}
 	return negociate(f)
 }
@@ -71,20 +53,9 @@ func Version() http.Handler {
 		if v.Type, v.Release, err = symon.Version(); err != nil {
 			return nil, err
 		}
-		if us, err := symon.Utmp(); err == nil {
-			v.Users = len(us)
-		}
-		if ps, err := symon.Process(); err == nil {
-			v.Process = len(ps)
-		}
+		v.Process = len(symon.PIDs())
+		v.Users, _ = symon.Logins()
 		v.Uptime, v.Elapsed = symon.Uptime()
-
-		if ps, err := symon.Process(); err == nil {
-			v.Process = len(ps)
-		}
-		if us, err := symon.Utmp(); err == nil {
-			v.Users = len(us)
-		}
 		v.Load = symon.Load()
 
 		return v, nil
