@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"fmt"
 )
 
 type P struct {
@@ -108,10 +109,14 @@ func Process() ([]P, error) {
 		if err != nil {
 			return err
 		}
-		if _, err := strconv.Atoi(i.Name()); err != nil || !i.IsDir() {
+		if !i.IsDir() || path == proc {
+			return nil
+		}
+		if _, err := strconv.Atoi(i.Name()); err != nil {
 			return filepath.SkipDir
 		}
 		f, err := os.Open(filepath.Join(path, "status"))
+		fmt.Println(f, err)
 		switch {
 		case err == nil:
 		case os.IsNotExist(err):
@@ -148,6 +153,7 @@ func Process() ([]P, error) {
 		go func(v *P) {
 			v.Core, v.Uptime = readProcessStats(v.Pid, 5, time.Millisecond*10)
 			data = append(data, *v)
+			fmt.Println(v)
 			wg.Done()
 		}(&p)
 		return nil

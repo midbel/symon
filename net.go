@@ -3,6 +3,7 @@ package symon
 import (
 	"bufio"
 	"encoding/binary"
+	"encoding/csv"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -98,6 +99,42 @@ const (
 	CLOSING
 )
 
+const (
+	ARP_NETROM     = 0
+	ARP_ETHER      = 1
+	ARP_EETHER     = 2
+	ARP_AX25       = 3
+	ARP_PRONET     = 4
+	ARP_CHAOS      = 5
+	ARP_IEEE802    = 6
+	ARP_ARCNET     = 7
+	ARP_APPLETLK   = 8
+	ARP_DLCI       = 15
+	ARP_ATM        = 19
+	ARP_METRICOM   = 23
+	ARP_IEEE1394   = 24
+	ARP_EUI64      = 27
+	ARP_INFINIBAND = 32
+)
+
+var arpTypes = map[int]string{
+	ARP_NETROM:     "NETROM",
+	ARP_ETHER:      "ETHER",
+	ARP_EETHER:     "EETHER",
+	ARP_AX25:       "AX25",
+	ARP_PRONET:     "PRONET",
+	ARP_CHAOS:      "CHAOS",
+	ARP_IEEE802:    "IEEE802",
+	ARP_ARCNET:     "ARCNET",
+	ARP_APPLETLK:   "APPLETLK",
+	ARP_DLCI:       "DLCI",
+	ARP_ATM:        "ATM",
+	ARP_METRICOM:   "METRICOM",
+	ARP_IEEE1394:   "IEEE1394",
+	ARP_EUI64:      "EUI64",
+	ARP_INFINIBAND: "INFINIBAND",
+}
+
 type C struct {
 	Proto   string `json:"protocol"`
 	Local   string `json:"local"`
@@ -153,6 +190,45 @@ type R struct {
 	Mask      string `json:"mask"`
 	Metric    int    `json:"metric"`
 	Distance  int    `json:"distance"`
+}
+
+type A struct {
+	Interface string `json:"interface"`
+	Address   string `json:"address"`
+	Hardware  string `json:"hardware"`
+	Type      string `json:"type"`
+	Mask      string `json:"mask"`
+}
+
+func ARPTable() ([]A, error) {
+	f, err := os.Open(filepath.Join(proc, "net", "arp"))
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	r := csv.NewReader(f)
+	r.Comma = ' '
+	r.FieldsPerRecord = 6
+	r.TrimLeadingSpace = true
+
+	as := make([]A, 0, 100)
+	for {
+		rs, err := r.Read()
+		if err != nil {
+			return nil, err
+		}
+		t, _ := strconv.ParseInt(rs[1], 0, 8)
+		a := A{
+			Interface: rs[5],
+			Address:   rs[0],
+			Hardware:  rs[3],
+			Mask:      rs[4],
+			Type:      arpTypes[int(t)],
+		}
+		as = append(as, a)
+	}
+	return as, nil
 }
 
 //Route gives the list of network routes currently known by a system.
