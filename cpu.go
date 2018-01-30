@@ -10,14 +10,6 @@ import (
 	"time"
 )
 
-var Tick float64 = 100.0
-
-func init() {
-	if t, err := strconv.ParseFloat(os.Getenv("CLK_TCK"), 64); err == nil {
-		Tick = t
-	}
-}
-
 type S struct {
 	Main    *Core     `json:"cpu"`
 	Cores   []*Core   `json:"cores"`

@@ -108,10 +108,7 @@ func Process() ([]P, error) {
 		if err != nil {
 			return err
 		}
-		if path == proc || !i.IsDir() {
-			return nil
-		}
-		if _, err := strconv.Atoi(i.Name()); err != nil {
+		if _, err := strconv.Atoi(i.Name()); err != nil || !i.IsDir() {
 			return filepath.SkipDir
 		}
 		f, err := os.Open(filepath.Join(path, "status"))
@@ -168,7 +165,6 @@ func readProcessStats(p, c int, e time.Duration) (float64, time.Duration) {
 		pt         time.Time
 		up         time.Duration
 	)
-	boot, _ := Uptime()
 	for i := 0; i < c; i++ {
 		bs, err := ioutil.ReadFile(filepath.Join(proc, strconv.Itoa(p), "stat"))
 		if err != nil {
@@ -188,5 +184,5 @@ func readProcessStats(p, c int, e time.Duration) (float64, time.Duration) {
 		j, _ := strconv.ParseFloat(fs[21], 64)
 		up = time.Duration(j/Tick) * time.Second
 	}
-	return ct / float64(c), time.Since(boot.Add(up))
+	return ct / float64(c), time.Since(Boot.Add(up))
 }

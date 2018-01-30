@@ -13,6 +13,25 @@ import (
 
 const proc = "/proc"
 
+var (
+	Kernel   string
+	Distrib  string
+	Hostname string  = "localhost"
+	Tick     float64 = 100.0
+	Boot     time.Time
+)
+
+func init() {
+	Boot, _ = Uptime()
+	Kernel, Distrib, _ = Version()
+	if h, err := os.Hostname(); err == nil {
+		Hostname = h
+	}
+	if t, err := strconv.ParseFloat(os.Getenv("CLK_TCK"), 64); err == nil {
+		Tick = t
+	}
+}
+
 func Uptime() (time.Time, time.Duration) {
 	f, err := os.Open(filepath.Join(proc, "uptime"))
 	if err != nil {

@@ -29,8 +29,6 @@ const (
 
 var Epoch = time.Unix(0, 0)
 
-var hostname string
-
 var records = []string{
 	"empty",
 	"run",
@@ -41,14 +39,6 @@ var records = []string{
 	"login",
 	"user",
 	"dead",
-}
-
-func init() {
-	if h, err := os.Hostname(); err == nil {
-		hostname = h
-	} else {
-		hostname = "localhost"
-	}
 }
 
 //An user record as found in /var/log/lastlog
@@ -104,7 +94,7 @@ func (u U) Hostname() string {
 	if u.Remote() {
 		return u.Host
 	}
-	return hostname
+	return Hostname
 }
 
 func (u U) Remote() bool {
@@ -130,9 +120,9 @@ func Logins() (int, int) {
 	var c, a int
 
 	ds := []struct {
-			Count *int
-			File  string
-	} {
+		Count *int
+		File  string
+	}{
 		{File: utmpFile, Count: &c},
 		{File: wtmpFile, Count: &a},
 	}
@@ -141,7 +131,7 @@ func Logins() (int, int) {
 		if err != nil {
 			return 0, 0
 		}
-		*d.Count = int(i.Size()/utmpRecordSize)
+		*d.Count = int(i.Size() / utmpRecordSize)
 	}
 	return c, a
 }
