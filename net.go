@@ -200,6 +200,45 @@ type A struct {
 	Mask      string `json:"mask"`
 }
 
+type D struct {
+	Label string `json:"interface"`
+	SendP int64 `json:"tx-packets"`
+	SendB int64 `json:"tx-bytes"`
+	RecvP int64 `json:"rx-packets"`
+	RecvB int64 `json:"rx-bytes"`
+}
+
+func Devices() ([]D, error) {
+	f, err := os.Open(filepath.Join(proc, "net", "dev"))
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	r := bufio.NewReader(f)
+	r.ReadString('\n')
+	r.ReadString('\n')
+
+	c := csv.NewReader(r)
+	c.Comma = ' '
+	c.FieldsPerRecord = 17
+	c.TrimLeadingSpace = true
+
+	ds := make([]D, 0, 16)
+	for rs, err := c.Read(); err == nil; rs, err = c.Read() {
+		if ix := strings.Index(rs[0], ":"); ix >= 0 {
+			rs[0] = rs[0][:ix]
+		}
+		d := D{Label: rs[0]}
+		d.SendB, _ = strconv.ParseInt(rs[1], 10, 64)
+		d.SendP, _ = strconv.ParseInt(rs[2], 10, 64)
+		d.RecvB, _ = strconv.ParseInt(rs[9], 10, 64)
+		d.RecvP, _ = strconv.ParseInt(rs[10], 10, 64)
+
+		ds = append(ds, d)
+	}
+	return ds, nil
+}
+
 func ARPTable() ([]A, error) {
 	f, err := os.Open(filepath.Join(proc, "net", "arp"))
 	if err != nil {
@@ -207,17 +246,17 @@ func ARPTable() ([]A, error) {
 	}
 	defer f.Close()
 
-	r := csv.NewReader(f)
-	r.Comma = ' '
-	r.FieldsPerRecord = 6
-	r.TrimLeadingSpace = true
+	r := bufio.NewReader(f)
+	if _, err := r.ReadString('\n'); err != nil {
+		return nil, err
+	}
+	c := csv.NewReader(r)
+	c.Comma = ' '
+	c.FieldsPerRecord = 6
+	c.TrimLeadingSpace = true
 
 	as := make([]A, 0, 100)
-	for {
-		rs, err := r.Read()
-		if err != nil {
-			return nil, err
-		}
+	for rs, err := c.Read(); err == nil; rs, err = c.Read(){
 		t, _ := strconv.ParseInt(rs[1], 0, 8)
 		a := A{
 			Interface: rs[5],
