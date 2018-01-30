@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -157,9 +156,6 @@ func Process() ([]P, error) {
 		return nil
 	})
 	wg.Wait()
-	sort.Slice(data, func(i, j int) bool {
-		return data[i].Pid < data[j].Pid
-	})
 	return data, err
 }
 

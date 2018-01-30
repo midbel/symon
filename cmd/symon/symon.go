@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"text/tabwriter"
 	"text/template"
@@ -112,7 +111,9 @@ func runLastlog(cmd *cli.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	sort.SliceStable(as, func(i, j int) bool { return as[i].Uid < as[j].Uid })
+	sort.Slice(as, func(i, j int) bool {
+		return as[i].Uid < as[j].Uid
+	})
 	w := tabwriter.NewWriter(os.Stdout, 12, 2, 2, ' ', 0)
 	defer w.Flush()
 	for _, a := range as {
@@ -167,8 +168,6 @@ func runStat(cmd *cli.Command, args []string) error {
 }
 
 func runProcess(cmd *cli.Command, args []string) error {
-	//all := cmd.Flag.Bool("a", false, "all")
-	irix := cmd.Flag.Bool("x", false, "")
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
 	}
@@ -180,11 +179,11 @@ func runProcess(cmd *cli.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	sort.Slice(ps, func(i, j int) bool {
+		return ps[i].Pid < ps[j].Pid
+	})
 	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", "USER", "PID", "PPID", "SINCE", "%CPU", "%MEM", "TTY", "STAT", "CMD")
 	for _, p := range ps {
-		if *irix {
-			p.Core /= float64(runtime.NumCPU())
-		}
 		fmt.Fprintf(w, pattern, p.User(), p.Pid, p.Parent, formatDuration(p.Uptime), p.Core, 0.0, "?", p.State, p.Command())
 	}
 	return nil
