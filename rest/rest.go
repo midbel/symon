@@ -2,7 +2,6 @@ package rest
 
 import (
 	"encoding/json"
-	// "net"
 	"net/http"
 	"time"
 
@@ -23,40 +22,49 @@ func Mount() http.Handler {
 	return negociate(f)
 }
 
-func Routes() http.Handler {
+func Net() http.Handler {
 	f := func(r *http.Request) (interface{}, error) {
-		return symon.Routes()
-	}
-	return negociate(f)
-}
-
-func Netstat() http.Handler {
-	f := func(r *http.Request) (interface{}, error) {
-		q := r.URL.Query()
-		return symon.Netstat(q["protocol"]...)
+		v := struct {
+			Routes []symon.R `json:"routes"`
+			Devices []symon.D `json:"devices"`
+			Stats []symon.C `json:"stats"`
+			Table []symon.A `json:"arp"`
+		}{}
+		if vs, err := symon.Routes(); err == nil {
+			v.Routes = vs
+		}
+		if vs, err := symon.Netstat(); err == nil {
+			v.Stats = vs
+		}
+		if vs, err := symon.Devices(); err == nil {
+			v.Devices = vs
+		}
+		if vs, err := symon.ARPTable(); err == nil {
+			v.Table = vs
+		}
+		return v, nil
 	}
 	return negociate(f)
 }
 
 func Version() http.Handler {
 	f := func(r *http.Request) (interface{}, error) {
+		u, _ := symon.Logins()
 		v := struct {
-			Type    string        `json:"kernel"`
-			Release string        `json:"release"`
-			Uptime  time.Time     `json:"uptime"`
-			Elapsed time.Duration `json:"duration"`
-			Users   int           `json:"users"`
-			Process int           `json:"process"`
-			Load    []float64     `json:"loadavg"`
-		}{}
-		var err error
-		if v.Type, v.Release, err = symon.Version(); err != nil {
-			return nil, err
+			Type    string    `json:"kernel"`
+			Release string    `json:"release"`
+			Uptime  time.Time `json:"uptime"`
+			Users   int       `json:"users"`
+			Process int       `json:"process"`
+			Load    []float64 `json:"loadavg"`
+		}{
+			Type:    symon.Kernel,
+			Release: symon.Distrib,
+			Uptime:  symon.Boot,
+			Process: len(symon.PIDs()),
+			Load:    symon.Load(),
+			Users:   u,
 		}
-		v.Process = len(symon.PIDs())
-		v.Users, _ = symon.Logins()
-		v.Uptime, v.Elapsed = symon.Uptime()
-		v.Load = symon.Load()
 
 		return v, nil
 	}

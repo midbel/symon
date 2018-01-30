@@ -3,6 +3,7 @@ package symon
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/user"
@@ -11,7 +12,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"fmt"
 )
 
 type P struct {
@@ -116,7 +116,6 @@ func Process() ([]P, error) {
 			return filepath.SkipDir
 		}
 		f, err := os.Open(filepath.Join(path, "status"))
-		fmt.Println(f, err)
 		switch {
 		case err == nil:
 		case os.IsNotExist(err):
