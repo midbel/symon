@@ -12,7 +12,6 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 )
@@ -33,42 +32,6 @@ func (a *Layers) Set(v string) error {
 		}
 	}
 	return nil
-}
-
-type service struct {
-	port, proto, name string
-	aliases           []string
-}
-
-var services []service
-
-func init() {
-	f, err := os.Open("/etc/services")
-	if err != nil {
-		return
-	}
-	defer f.Close()
-	s := bufio.NewScanner(f)
-	for s.Scan() {
-		t := s.Text()
-		if len(t) == 0 || t[0] == '#' {
-			continue
-		}
-		if ix := strings.Index(t, "#"); ix >= 0 {
-			t = t[:ix]
-		}
-		fs := strings.Fields(t)
-		ps := strings.Split(fs[1], "/")
-		s := service{
-			port:  ps[0],
-			proto: ps[1],
-			name:  fs[0],
-		}
-		services = append(services, s)
-	}
-	sort.Slice(services, func(i, j int) bool {
-		return services[i].port <= services[j].port
-	})
 }
 
 var states = []string{
@@ -183,7 +146,7 @@ func (c C) Status() string {
 	}
 }
 
-type R struct {
+type Route struct {
 	Interface string `json:"interface"`
 	Address   string `json:"address"`
 	Gateway   string `json:"gateway"`
@@ -192,7 +155,7 @@ type R struct {
 	Distance  int    `json:"distance"`
 }
 
-type A struct {
+type Link struct {
 	Interface string `json:"interface"`
 	Address   string `json:"address"`
 	Hardware  string `json:"hardware"`
@@ -200,15 +163,15 @@ type A struct {
 	Mask      string `json:"mask"`
 }
 
-type D struct {
+type Interface struct {
 	Label string `json:"interface"`
-	SendP int64 `json:"tx-packets"`
-	SendB int64 `json:"tx-bytes"`
-	RecvP int64 `json:"rx-packets"`
-	RecvB int64 `json:"rx-bytes"`
+	SendP int64  `json:"tx-packets"`
+	SendB int64  `json:"tx-bytes"`
+	RecvP int64  `json:"rx-packets"`
+	RecvB int64  `json:"rx-bytes"`
 }
 
-func Devices() ([]D, error) {
+func Interfaces() ([]Interface, error) {
 	f, err := os.Open(filepath.Join(proc, "net", "dev"))
 	if err != nil {
 		return nil, err
@@ -223,55 +186,62 @@ func Devices() ([]D, error) {
 	c.FieldsPerRecord = 17
 	c.TrimLeadingSpace = true
 
-	ds := make([]D, 0, 16)
+	ds := make([]Interface, 0, 16)
 	for rs, err := c.Read(); err == nil; rs, err = c.Read() {
 		if ix := strings.Index(rs[0], ":"); ix >= 0 {
 			rs[0] = rs[0][:ix]
 		}
-		d := D{Label: rs[0]}
-		d.SendB, _ = strconv.ParseInt(rs[1], 10, 64)
-		d.SendP, _ = strconv.ParseInt(rs[2], 10, 64)
-		d.RecvB, _ = strconv.ParseInt(rs[9], 10, 64)
-		d.RecvP, _ = strconv.ParseInt(rs[10], 10, 64)
+		i := Interface{Label: rs[0]}
+		i.SendB, _ = strconv.ParseInt(rs[1], 10, 64)
+		i.SendP, _ = strconv.ParseInt(rs[2], 10, 64)
+		i.RecvB, _ = strconv.ParseInt(rs[9], 10, 64)
+		i.RecvP, _ = strconv.ParseInt(rs[10], 10, 64)
 
-		ds = append(ds, d)
+		ds = append(ds, i)
 	}
 	return ds, nil
 }
 
-func ARPTable() ([]A, error) {
+func Links() ([]Link, error) {
 	f, err := os.Open(filepath.Join(proc, "net", "arp"))
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
-
 	r := bufio.NewReader(f)
 	if _, err := r.ReadString('\n'); err != nil {
 		return nil, err
 	}
+
 	c := csv.NewReader(r)
 	c.Comma = ' '
 	c.FieldsPerRecord = 6
 	c.TrimLeadingSpace = true
 
-	as := make([]A, 0, 100)
-	for rs, err := c.Read(); err == nil; rs, err = c.Read(){
+	if _, err := c.Read(); err != nil {
+		return nil, err
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	ls := make([]Link, 0, 100)
+	for rs, err := c.Read(); err == nil; rs, err = c.Read() {
 		t, _ := strconv.ParseInt(rs[1], 0, 8)
-		a := A{
+		i := Link{
 			Interface: rs[5],
 			Address:   rs[0],
 			Hardware:  rs[3],
 			Mask:      rs[4],
 			Type:      arpTypes[int(t)],
 		}
-		as = append(as, a)
+		ls = append(ls, i)
 	}
-	return as, nil
+	return ls, nil
 }
 
 //Route gives the list of network routes currently known by a system.
-func Routes() ([]R, error) {
+func Routes() ([]Route, error) {
 	f, err := os.Open(filepath.Join(proc, "net", "route"))
 	if err != nil {
 		return nil, err
@@ -280,23 +250,20 @@ func Routes() ([]R, error) {
 	s := bufio.NewScanner(f)
 	s.Scan()
 
-	data := make([]R, 0, 16)
+	rs := make([]Route, 0, 16)
 	for s.Scan() {
-		if err := s.Err(); err != nil {
-			return nil, err
+		fs := strings.Fields(s.Text())
+		r := Route{
+			Interface: fs[0],
+			Address:   parseHost(fs[1]),
+			Gateway:   parseHost(fs[2]),
+			Mask:      parseHost(fs[7]),
 		}
-		parts := strings.Fields(s.Text())
-		r := R{
-			Interface: parts[0],
-			Address:   parseHost(parts[1]),
-			Gateway:   parseHost(parts[2]),
-			Mask:      parseHost(parts[7]),
-		}
-		r.Metric, _ = strconv.Atoi(parts[6])
+		r.Metric, _ = strconv.Atoi(fs[6])
 
-		data = append(data, r)
+		rs = append(rs, r)
 	}
-	return data, nil
+	return rs, s.Err()
 }
 
 //Netstat gives the list of connections that are known by a system.

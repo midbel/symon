@@ -3,6 +3,7 @@ package symon
 import (
 	"bufio"
 	"bytes"
+	"encoding/csv"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -89,4 +90,25 @@ func processName(pid string, c bool) string {
 		return strings.TrimSpace(string(bs))
 	}
 	return ""
+}
+
+func readFile(p string) (<-chan []string, error) {
+	f, err := os.Open(p)
+	if err != nil {
+		return nil, err
+	}
+	qs := make(chan []string)
+	go func() {
+		defer func() {
+			close(qs)
+			f.Close()
+		}()
+		c := csv.NewReader(bufio.NewReader(f))
+		c.Comma = ' '
+		c.TrimLeadingSpace = true
+		for rs, err := c.Read(); err == nil; rs, err = c.Read() {
+			qs <- rs
+		}
+	}()
+	return qs, nil
 }

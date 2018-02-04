@@ -31,9 +31,9 @@ func Stat() (*S, error) {
 		fs := strings.SplitN(s.Text(), " ", 2)
 		switch v, vs := fs[0], strings.Fields(fs[1]); {
 		case strings.HasPrefix(v, "cpu") && v != "cpu":
-			stat.Cores = append(stat.Cores, loadStatsCPU(v, vs))
+			stat.Cores = append(stat.Cores, readCPUTimes(v, vs))
 		case v == "cpu":
-			stat.Main = loadStatsCPU(v, vs)
+			stat.Main = readCPUTimes(v, vs)
 		case v == "btime":
 			t, _ := strconv.ParseInt(vs[0], 10, 64)
 			stat.Boot = time.Unix(t, 0)
@@ -90,7 +90,7 @@ func TotalPercentCPU(e time.Duration) <-chan float64 {
 			if vs[0] != "cpu" {
 				return
 			}
-			c := loadStatsCPU(vs[0], strings.Fields(vs[1]))
+			c := readCPUTimes(vs[0], strings.Fields(vs[1]))
 			i, t := c.IdleTime(), c.TotalTime()
 			idle, total = i-idle, t-total
 
@@ -136,7 +136,7 @@ func (c Core) IdleTime() float64 {
 	return c.Idle
 }
 
-func loadStatsCPU(v string, vs []string) *Core {
+func readCPUTimes(v string, vs []string) *Core {
 	c := &Core{Label: v}
 
 	cs := []*float64{

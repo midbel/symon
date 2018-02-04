@@ -25,10 +25,9 @@ func Mount() http.Handler {
 func Net() http.Handler {
 	f := func(r *http.Request) (interface{}, error) {
 		v := struct {
-			Routes []symon.R `json:"routes"`
-			Devices []symon.D `json:"devices"`
-			Stats []symon.C `json:"stats"`
-			Table []symon.A `json:"arp"`
+			Routes     []symon.Route     `json:"routes"`
+			Interfaces []symon.Interface `json:"interfaces"`
+			Stats      []symon.C         `json:"stats"`
 		}{}
 		if vs, err := symon.Routes(); err == nil {
 			v.Routes = vs
@@ -36,11 +35,8 @@ func Net() http.Handler {
 		if vs, err := symon.Netstat(); err == nil {
 			v.Stats = vs
 		}
-		if vs, err := symon.Devices(); err == nil {
-			v.Devices = vs
-		}
-		if vs, err := symon.ARPTable(); err == nil {
-			v.Table = vs
+		if vs, err := symon.Interfaces(); err == nil {
+			v.Interfaces = vs
 		}
 		return v, nil
 	}

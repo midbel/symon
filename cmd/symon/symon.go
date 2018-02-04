@@ -57,6 +57,11 @@ var commands = []*cli.Command{
 		Run:   runRoutes,
 	},
 	{
+		Usage: "links",
+		Short: "print links known by a system",
+		Run:   runLinks,
+	},
+	{
 		Usage: "netstat",
 		Short: "print information about active connections on a system",
 		Run:   runNetstat,
@@ -204,6 +209,20 @@ func runRoutes(cmd *cli.Command, args []string) error {
 		fmt.Fprintf(w, pattern, r.Address, r.Gateway, r.Mask, r.Interface)
 	}
 	w.Flush()
+	return nil
+}
+
+func runLinks(cmd *cli.Command, args []string) error {
+	if err := cmd.Flag.Parse(args); err != nil {
+		return err
+	}
+	ls, err := symon.Links()
+	if err != nil {
+		return err
+	}
+	for _, l := range ls {
+		log.Printf("%+v\n", l)
+	}
 	return nil
 }
 
