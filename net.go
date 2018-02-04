@@ -202,31 +202,16 @@ func Interfaces() ([]Interface, error) {
 	return ds, nil
 }
 
+//Links gives the ARP table used by the kernel for address resolutions.
 func Links() ([]Link, error) {
-	f, err := os.Open(filepath.Join(proc, "net", "arp"))
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	r := bufio.NewReader(f)
-	if _, err := r.ReadString('\n'); err != nil {
-		return nil, err
-	}
-
-	c := csv.NewReader(r)
-	c.Comma = ' '
-	c.FieldsPerRecord = 6
-	c.TrimLeadingSpace = true
-
-	if _, err := c.Read(); err != nil {
-		return nil, err
-	}
+	r := filepath.Join(proc, "net", "arp")
+	qs, err := readFile(r, 6, 1, ' ')
 	if err != nil {
 		return nil, err
 	}
 
 	ls := make([]Link, 0, 100)
-	for rs, err := c.Read(); err == nil; rs, err = c.Read() {
+	for rs := range qs {
 		t, _ := strconv.ParseInt(rs[1], 0, 8)
 		i := Link{
 			Interface: rs[5],
@@ -242,17 +227,13 @@ func Links() ([]Link, error) {
 
 //Route gives the list of network routes currently known by a system.
 func Routes() ([]Route, error) {
-	f, err := os.Open(filepath.Join(proc, "net", "route"))
+	r := filepath.Join(proc, "net", "route")
+	qs, err := readFile(r, 11, 1, '\t')
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
-	s := bufio.NewScanner(f)
-	s.Scan()
-
 	rs := make([]Route, 0, 16)
-	for s.Scan() {
-		fs := strings.Fields(s.Text())
+	for fs := range qs {
 		r := Route{
 			Interface: fs[0],
 			Address:   parseHost(fs[1]),
@@ -263,7 +244,7 @@ func Routes() ([]Route, error) {
 
 		rs = append(rs, r)
 	}
-	return rs, s.Err()
+	return rs, nil
 }
 
 //Netstat gives the list of connections that are known by a system.

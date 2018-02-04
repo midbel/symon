@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/csv"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -92,10 +93,16 @@ func processName(pid string, c bool) string {
 	return ""
 }
 
-func readFile(p string) (<-chan []string, error) {
+func readFile(p string, n, k int, s rune) (<-chan []string, error) {
 	f, err := os.Open(p)
 	if err != nil {
 		return nil, err
+	}
+	r := bufio.NewReader(f)
+	for i := 0; i < k; i++ {
+		if _, err := r.ReadString('\n'); err != nil {
+			return nil, err
+		}
 	}
 	qs := make(chan []string)
 	go func() {
@@ -103,10 +110,15 @@ func readFile(p string) (<-chan []string, error) {
 			close(qs)
 			f.Close()
 		}()
-		c := csv.NewReader(bufio.NewReader(f))
-		c.Comma = ' '
+		c := csv.NewReader(r)
+		c.Comma = s
+		c.FieldsPerRecord = n
 		c.TrimLeadingSpace = true
-		for rs, err := c.Read(); err == nil; rs, err = c.Read() {
+
+		for rs, err := c.Read(); err != io.EOF; rs, err = c.Read() {
+			if err != nil {
+				continue
+			}
 			qs <- rs
 		}
 	}()
