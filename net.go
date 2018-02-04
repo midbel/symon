@@ -98,7 +98,7 @@ var arpTypes = map[int]string{
 	ARP_INFINIBAND: "INFINIBAND",
 }
 
-type C struct {
+type Socket struct {
 	Proto   string `json:"protocol"`
 	Local   string `json:"local"`
 	Remote  string `json:"remote"`
@@ -109,7 +109,7 @@ type C struct {
 	Command string `json:"command"`
 }
 
-func (c C) MarshalJSON() ([]byte, error) {
+func (s Socket) MarshalJSON() ([]byte, error) {
 	v := struct {
 		Proto   string `json:"protocol"`
 		Local   string `json:"local"`
@@ -119,27 +119,27 @@ func (c C) MarshalJSON() ([]byte, error) {
 		Send    int    `json:"send"`
 		Command string `json:"command"`
 	}{
-		Proto:   c.Proto,
-		Local:   c.Local,
-		Remote:  c.Remote,
-		State:   c.Status(),
-		Recv:    c.Recv,
-		Send:    c.Send,
-		Command: c.Command,
+		Proto:   s.Proto,
+		Local:   s.Local,
+		Remote:  s.Remote,
+		State:   s.Status(),
+		Recv:    s.Recv,
+		Send:    s.Send,
+		Command: s.Command,
 	}
 	return json.Marshal(v)
 }
 
-func (c C) User() string {
-	u, err := user.LookupId(strconv.Itoa(c.Uid))
+func (s Socket) User() string {
+	u, err := user.LookupId(strconv.Itoa(s.Uid))
 	if err == nil {
 		return u.Username
 	}
 	return ""
 }
 
-func (c C) Status() string {
-	if ix := c.State - 1; ix > len(states) {
+func (s Socket) Status() string {
+	if ix := s.State - 1; ix > len(states) {
 		return "-"
 	} else {
 		return states[ix]
@@ -267,11 +267,11 @@ func Routes() ([]Route, error) {
 }
 
 //Netstat gives the list of connections that are known by a system.
-func Netstat(ps ...string) ([]C, error) {
+func Netstat(ps ...string) ([]Socket, error) {
 	if len(ps) == 0 {
 		ps = []string{"tcp", "udp", "tcp", "udp6"}
 	}
-	vs := make([]C, 0, 24)
+	vs := make([]Socket, 0, 24)
 	ns := listCommandsBySockets()
 	for _, p := range ps {
 		switch p {
@@ -289,7 +289,7 @@ func Netstat(ps ...string) ([]C, error) {
 	return vs, nil
 }
 
-func netstat(proto string, ns map[string]string) ([]C, error) {
+func netstat(proto string, ns map[string]string) ([]Socket, error) {
 	f, err := os.Open(filepath.Join(proc, "net", proto))
 	if err != nil {
 		return nil, err
@@ -298,28 +298,28 @@ func netstat(proto string, ns map[string]string) ([]C, error) {
 	s := bufio.NewScanner(f)
 	s.Scan()
 
-	data := make([]C, 0, 16)
+	ks := make([]Socket, 0, 16)
 	for s.Scan() {
-		c := C{Proto: proto}
+		k := Socket{Proto: proto}
 		parts := strings.Fields(s.Text())
 
-		c.Local, c.Remote = parseAddr(parts[1]), parseAddr(parts[2])
+		k.Local, k.Remote = parseAddr(parts[1]), parseAddr(parts[2])
 		if s, err := strconv.ParseInt(parts[3], 16, 64); err == nil {
-			c.State = int(s)
+			k.State = int(s)
 		}
 
 		iob := strings.Split(parts[4], ":")
-		c.Recv, _ = strconv.Atoi(iob[0])
-		c.Send, _ = strconv.Atoi(iob[1])
+		k.Recv, _ = strconv.Atoi(iob[0])
+		k.Send, _ = strconv.Atoi(iob[1])
 		if n, ok := ns[parts[9]]; ok {
-			c.Command = n
+			k.Command = n
 		} else {
-			c.Command = "-"
+			k.Command = "-"
 		}
 
-		data = append(data, c)
+		ks = append(ks, k)
 	}
-	return data, nil
+	return ks, nil
 }
 
 func parseHost(h string) string {

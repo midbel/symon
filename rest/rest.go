@@ -27,13 +27,13 @@ func Net() http.Handler {
 		v := struct {
 			Routes     []symon.Route     `json:"routes"`
 			Interfaces []symon.Interface `json:"interfaces"`
-			Stats      []symon.C         `json:"stats"`
+			Sockets    []symon.Socket    `json:"sockets"`
 		}{}
 		if vs, err := symon.Routes(); err == nil {
 			v.Routes = vs
 		}
 		if vs, err := symon.Netstat(); err == nil {
-			v.Stats = vs
+			v.Sockets = vs
 		}
 		if vs, err := symon.Interfaces(); err == nil {
 			v.Interfaces = vs
