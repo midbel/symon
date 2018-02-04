@@ -3,7 +3,6 @@ package symon
 import (
 	"bufio"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"os/user"
@@ -152,7 +151,6 @@ func Process() ([]P, error) {
 		go func(v *P) {
 			v.Core, v.Uptime = readProcessStats(v.Pid, 5, time.Millisecond*10)
 			data = append(data, *v)
-			fmt.Println(v)
 			wg.Done()
 		}(&p)
 		return nil
