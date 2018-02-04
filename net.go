@@ -3,7 +3,6 @@ package symon
 import (
 	"bufio"
 	"encoding/binary"
-	"encoding/csv"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -172,22 +171,14 @@ type Interface struct {
 }
 
 func Interfaces() ([]Interface, error) {
-	f, err := os.Open(filepath.Join(proc, "net", "dev"))
+	r := filepath.Join(proc, "net", "dev")
+	qs, err := readProcFile(r, 17, 2, ' ')
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
-	r := bufio.NewReader(f)
-	r.ReadString('\n')
-	r.ReadString('\n')
-
-	c := csv.NewReader(r)
-	c.Comma = ' '
-	c.FieldsPerRecord = 17
-	c.TrimLeadingSpace = true
 
 	ds := make([]Interface, 0, 16)
-	for rs, err := c.Read(); err == nil; rs, err = c.Read() {
+	for rs := range qs {
 		if ix := strings.Index(rs[0], ":"); ix >= 0 {
 			rs[0] = rs[0][:ix]
 		}
@@ -205,7 +196,7 @@ func Interfaces() ([]Interface, error) {
 //Links gives the ARP table used by the kernel for address resolutions.
 func Links() ([]Link, error) {
 	r := filepath.Join(proc, "net", "arp")
-	qs, err := readFile(r, 6, 1, ' ')
+	qs, err := readProcFile(r, 6, 1, ' ')
 	if err != nil {
 		return nil, err
 	}
@@ -228,7 +219,7 @@ func Links() ([]Link, error) {
 //Route gives the list of network routes currently known by a system.
 func Routes() ([]Route, error) {
 	r := filepath.Join(proc, "net", "route")
-	qs, err := readFile(r, 11, 1, '\t')
+	qs, err := readProcFile(r, 11, 1, '\t')
 	if err != nil {
 		return nil, err
 	}

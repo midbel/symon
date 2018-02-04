@@ -57,8 +57,14 @@ var commands = []*cli.Command{
 		Run:   runRoutes,
 	},
 	{
+		Usage: "interfaces",
+		Short: "print network interfaces known by a system",
+		Run:   runInterfaces,
+	},
+	{
 		Usage: "links",
 		Short: "print links known by a system",
+		Alias: []string{"arp"},
 		Run:   runLinks,
 	},
 	{
@@ -212,6 +218,20 @@ func runRoutes(cmd *cli.Command, args []string) error {
 	return nil
 }
 
+func runInterfaces(cmd *cli.Command, args []string) error {
+	if err := cmd.Flag.Parse(args); err != nil {
+		return err
+	}
+	fs, err := symon.Interfaces()
+	if err != nil {
+		return err
+	}
+	for _, i := range fs {
+		log.Printf("%+v", i)
+	}
+	return nil
+}
+
 func runLinks(cmd *cli.Command, args []string) error {
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
@@ -221,7 +241,7 @@ func runLinks(cmd *cli.Command, args []string) error {
 		return err
 	}
 	for _, l := range ls {
-		log.Printf("%+v\n", l)
+		log.Printf("%+v", l)
 	}
 	return nil
 }

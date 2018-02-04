@@ -93,7 +93,7 @@ func processName(pid string, c bool) string {
 	return ""
 }
 
-func readFile(p string, n, k int, s rune) (<-chan []string, error) {
+func readProcFile(p string, n, k int, s rune) (<-chan []string, error) {
 	f, err := os.Open(p)
 	if err != nil {
 		return nil, err
