@@ -80,7 +80,7 @@ func (t times) Usage(p *times) *Usage {
 		}
 		return v
 	}
-	g := 1000 * ((d - i) / d) / 10
+	g := (100 * (d - i)) / d
 	if math.IsNaN(g) || g < 0 {
 		g = 0
 	}
