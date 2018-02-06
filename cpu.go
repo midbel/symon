@@ -2,7 +2,6 @@ package symon
 
 import (
 	"bufio"
-	"io"
 	"math"
 	"os"
 	"path/filepath"
@@ -48,97 +47,108 @@ type Usage struct {
 	GuestN float64 `json:"guestn"`
 }
 
-type times struct {
-	Label  string
-	Values []float64
+type Jiffy struct {
+	Label string `json:"name"`
+
+	User   float64 `json:"user"`
+	UserN  float64 `json:"usern"`
+	Syst   float64 `json:"system"`
+	Idle   float64 `json:"idle"`
+	Wait   float64 `json:"iowait"`
+	Hard   float64 `json:"hardirq"`
+	Soft   float64 `json:"softirq"`
+	Steal  float64 `json:"steal"`
+	Guest  float64 `json:"guest"`
+	GuestN float64 `json:"guestn"`
 }
 
-func (t times) TotalTime() float64 {
-	var v float64
-	for i := range t.Values {
-		v += t.Values[i]
-	}
-	return v
+func (j Jiffy) TotalTime() float64 {
+	return j.User + j.UserN + j.Syst + j.Idle + j.Wait + j.Hard + j.Soft + j.Steal
 }
 
-func (t times) IdleTime() float64 {
-	return t.Values[3]
+func (j Jiffy) IdleTime() float64 {
+	return j.Idle
 }
 
-func (t times) Usage(p *times) *Usage {
-	i := t.IdleTime() - p.IdleTime()
-	d := t.TotalTime() - p.TotalTime()
+func (j Jiffy) Usage(p Jiffy) *Usage {
+	i := j.IdleTime() - p.IdleTime()
+	d := j.TotalTime() - p.TotalTime()
 
 	if d == 0 {
-		return &Usage{Label: t.Label}
+		return &Usage{Label: j.Label}
 	}
 
-	calc := func(ix int) float64 {
-		v := (100 * (t.Values[ix] - p.Values[ix])) / d
+	calc := func(c, p float64) float64 {
+		v := (100 * (c - p)) / d
 		if v < 0 || math.IsNaN(v) {
 			return 0
 		}
 		return v
 	}
-	g := (100 * (d - i)) / d
-	if math.IsNaN(g) || g < 0 {
-		g = 0
-	}
 
 	return &Usage{
-		Label:  t.Label,
-		Total:  g,
-		User:   calc(0),
-		UserN:  calc(1),
-		Syst:   calc(2),
-		Idle:   calc(3),
-		Wait:   calc(4),
-		Hard:   calc(5),
-		Soft:   calc(6),
-		Steal:  calc(7),
-		Guest:  calc(8),
-		GuestN: calc(9),
+		Label:  j.Label,
+		Total:  calc(d, i),
+		User:   calc(j.User, p.User),
+		UserN:  calc(j.UserN, p.UserN),
+		Syst:   calc(j.Syst, p.Syst),
+		Idle:   calc(j.Idle, p.Idle),
+		Wait:   calc(j.Wait, p.Wait),
+		Hard:   calc(j.Hard, p.Hard),
+		Soft:   calc(j.Soft, p.Soft),
+		Steal:  calc(j.Steal, p.Steal),
+		Guest:  calc(j.Guest, p.Guest),
+		GuestN: calc(j.GuestN, p.GuestN),
 	}
 }
 
-func Percents(e time.Duration) ([]*Usage, error) {
-	f, err := os.Open(filepath.Join(proc, "stat"))
+func Times() ([]Jiffy, error) {
+	qs, err := readProcFile(filepath.Join(proc, "stat"), 11, 0, ' ')
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
-
-	r := bufio.NewReader(f)
-	var cs []*times
-	for i := 0; i < 2; i++ {
-		for rs, err := r.ReadString('\n'); err == nil; rs, err = r.ReadString('\n') {
-			if !strings.HasPrefix(rs, "cpu") {
-				break
-			}
-			cs = append(cs, readCPUTimes(rs))
+	var js []Jiffy
+	for rs := range qs {
+		j := Jiffy{Label: rs[0]}
+		ts := []*float64{
+			&j.User,
+			&j.UserN,
+			&j.Syst,
+			&j.Idle,
+			&j.Wait,
+			&j.Hard,
+			&j.Soft,
+			&j.Steal,
+			&j.Guest,
+			&j.GuestN,
 		}
+		for i, j := 1, 0; i < len(ts); i, j = i+1, i {
+			v, err := strconv.ParseFloat(rs[i], 64)
+			if err != nil {
+				return nil, err
+			}
+			*(ts[j]) = v / Tick
+		}
+		js = append(js, j)
+	}
+	return js, nil
+}
+
+func Percents(e time.Duration) ([]*Usage, error) {
+	var js []Jiffy
+	for i := 0; i < 2; i++ {
+		vs, err := Times()
+		if err != nil {
+			return nil, err
+		}
+		js = append(js, vs...)
 		if i < 1 {
 			time.Sleep(e)
 		}
-		if _, err := f.Seek(0, io.SeekStart); err != nil {
-			return nil, err
-		}
-		r.Reset(f)
 	}
-	us := make([]*Usage, len(cs)/2)
+	us := make([]*Usage, len(js)/2)
 	for i, j := 0, len(us); i < j; i++ {
-		us[i] = cs[i+j].Usage(cs[i])
+		us[i] = js[i+j].Usage(js[i])
 	}
 	return us, nil
-}
-
-func readCPUTimes(s string) *times {
-	vs := strings.Fields(strings.TrimSpace(s))
-
-	cs := make([]float64, len(vs)-1)
-	for i, j := 1, 0; i < len(vs); i, j = i+1, j+1 {
-		v, _ := strconv.ParseFloat(vs[i], 64)
-		cs[j] = v / Tick
-	}
-	return &times{vs[0], cs}
 }
