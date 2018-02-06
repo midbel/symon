@@ -66,22 +66,22 @@ func (t times) IdleTime() float64 {
 }
 
 func (t times) Usage(p *times) *Usage {
-	d := t.TotalTime() - p.TotalTime()
 	i := t.IdleTime() - p.IdleTime()
+	d := t.TotalTime() - p.TotalTime()
 
 	if d == 0 {
 		return &Usage{Label: t.Label}
 	}
 
 	calc := func(ix int) float64 {
-		v := 1000 * ((t.Values[ix] - p.Values[ix]) / d) / 10
+		v := (100 * (t.Values[ix] - p.Values[ix])) / d
 		if v < 0 || math.IsNaN(v) {
 			return 0
 		}
 		return v
 	}
-	g := 100 * (d - i) / d
-	if g < 0 || math.IsNaN(g) {
+	g := 1000 * ((d - i) / d) / 10
+	if math.IsNaN(g) || g < 0 {
 		g = 0
 	}
 
@@ -101,10 +101,10 @@ func (t times) Usage(p *times) *Usage {
 	}
 }
 
-func Percents(e time.Duration) (*Usage, []*Usage, error) {
+func Percents(e time.Duration) ([]*Usage, error) {
 	f, err := os.Open(filepath.Join(proc, "stat"))
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	defer f.Close()
 
@@ -117,19 +117,19 @@ func Percents(e time.Duration) (*Usage, []*Usage, error) {
 			}
 			cs = append(cs, readCPUTimes(rs))
 		}
-		if _, err := f.Seek(0, io.SeekStart); err != nil {
-			return nil, nil, err
-		}
-		r.Reset(f)
 		if i < 1 {
 			time.Sleep(e)
 		}
+		if _, err := f.Seek(0, io.SeekStart); err != nil {
+			return nil, err
+		}
+		r.Reset(f)
 	}
 	us := make([]*Usage, len(cs)/2)
 	for i, j := 0, len(us); i < j; i++ {
 		us[i] = cs[i+j].Usage(cs[i])
 	}
-	return us[0], us[1:], nil
+	return us, nil
 }
 
 func readCPUTimes(s string) *times {

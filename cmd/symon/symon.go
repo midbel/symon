@@ -115,20 +115,20 @@ func runPercents(cmd *cli.Command, args []string) error {
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
 	}
-	_, us, err := symon.Percents(*e)
+	us, err := symon.Percents(*e)
 	if err != nil {
 		return err
-	}
-	if *g {
-		return nil
 	}
 	w := tabwriter.NewWriter(os.Stdout, 12, 2, 2, ' ', 0)
 	defer w.Flush()
 
-	fmt.Fprintln(w, "name\tuser\tsyst\tnice\tidle\twait\ttotal")
+	fmt.Fprintln(w, "name\tuser\tsyst\tnice\tidle\twait\tbusy")
 
 	const pattern = "%s\t%5.2f\t%5.2f\t%5.2f\t%5.2f\t%5.2f\t%5.2f\n"
-	for _, u := range us {
+	for i, u := range us {
+		if !*g && i == 0 {
+			continue
+		}
 		fmt.Fprintf(w, pattern, u.Label, u.User, u.Syst, u.UserN, u.Idle, u.Wait, u.Total)
 	}
 	return nil
