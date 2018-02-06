@@ -138,7 +138,7 @@ func meminfo(r io.ReadSeeker) <-chan []M {
 				}
 			}
 			q <- []M{mem, swap}
-			r.Seek(io.SeekStart, 0)
+			r.Seek(0, io.SeekStart)
 		}
 	}()
 	return q
