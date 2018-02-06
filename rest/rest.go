@@ -67,6 +67,29 @@ func Process() http.Handler {
 	return negociate(f)
 }
 
+func Stats() http.Handler {
+	var ps []symon.Jiffy
+	f := func(r *http.Request) (interface{}, error) {
+		cs, err :=  symon.Times()
+		v := struct {
+			Times []symon.Jiffy `json:"times"`
+			Usages []symon.Usage `json:"usages,omitempty"`
+		} {
+			Times: cs,
+			Usages: make([]symon.Usage, len(cs)),
+		}
+		if len(ps) > 0 {
+			for i := 0; i < len(cs); i++ {
+				v.Usages[i] = *(cs[i].Usage(ps[i]))
+			}
+		}
+		ps = cs
+
+		return v, err
+	}
+	return negociate(f)
+}
+
 func Free() http.Handler {
 	f := func(r *http.Request) (interface{}, error) {
 		return symon.Free()

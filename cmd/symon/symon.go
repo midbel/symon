@@ -353,6 +353,7 @@ func runServe(cmd *cli.Command, args []string) error {
 	http.Handle("/meminfo/", rest.Free())
 	http.Handle("/users/", rest.Who())
 	http.Handle("/process/", rest.Process())
+	http.Handle("/stats/", rest.Stats())
 
 	return http.ListenAndServe(*addr, nil)
 }
