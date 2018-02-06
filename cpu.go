@@ -31,22 +31,6 @@ func Load() []float64 {
 	return vs
 }
 
-type Usage struct {
-	Label string  `json:"name"`
-	Total float64 `json:"total"`
-
-	User   float64 `json:"user"`
-	UserN  float64 `json:"usern"`
-	Syst   float64 `json:"system"`
-	Idle   float64 `json:"idle"`
-	Wait   float64 `json:"iowait"`
-	Hard   float64 `json:"hardirq"`
-	Soft   float64 `json:"softirq"`
-	Steal  float64 `json:"steal"`
-	Guest  float64 `json:"guest"`
-	GuestN float64 `json:"guestn"`
-}
-
 type Jiffy struct {
 	Label string `json:"name"`
 
@@ -132,6 +116,22 @@ func Times() ([]Jiffy, error) {
 		js = append(js, j)
 	}
 	return js, nil
+}
+
+type Usage struct {
+	Label string  `json:"name"`
+	Total float64 `json:"total"`
+
+	User   float64 `json:"user"`
+	UserN  float64 `json:"usern"`
+	Syst   float64 `json:"system"`
+	Idle   float64 `json:"idle"`
+	Wait   float64 `json:"iowait"`
+	Hard   float64 `json:"hardirq"`
+	Soft   float64 `json:"softirq"`
+	Steal  float64 `json:"steal"`
+	Guest  float64 `json:"guest"`
+	GuestN float64 `json:"guestn"`
 }
 
 func Percents(e time.Duration) ([]*Usage, error) {

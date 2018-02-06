@@ -122,7 +122,7 @@ func runPercents(cmd *cli.Command, args []string) error {
 	w := tabwriter.NewWriter(os.Stdout, 12, 2, 2, ' ', 0)
 	defer w.Flush()
 
-	fmt.Fprintln(w, "name\tuser\tsyst\tnice\tidle\twait\tbusy")
+	fmt.Fprintln(w, "name\tuser\tsyst\tnice\tidle\twait\ttotal")
 
 	const pattern = "%s\t%5.2f\t%5.2f\t%5.2f\t%5.2f\t%5.2f\t%5.2f\n"
 	for i, u := range us {
