@@ -82,6 +82,11 @@ var commands = []*cli.Command{
 		Short: "print the more recent login of users known by the system",
 		Run:   runLastlog,
 	},
+	{
+		Usage: "load",
+		Short: "print cpu usage percentage",
+		Run:   runPercents,
+	},
 }
 
 func main() {
@@ -102,6 +107,31 @@ func main() {
 	if err := cli.Run(commands, usage, nil); err != nil {
 		log.Fatalln(err)
 	}
+}
+
+func runPercents(cmd *cli.Command, args []string) error {
+	e := cmd.Flag.Duration("e", time.Millisecond*100, "")
+	g := cmd.Flag.Bool("g", false, "")
+	if err := cmd.Flag.Parse(args); err != nil {
+		return err
+	}
+	_, us, err := symon.Percents(*e)
+	if err != nil {
+		return err
+	}
+	if *g {
+		return nil
+	}
+	w := tabwriter.NewWriter(os.Stdout, 12, 2, 2, ' ', 0)
+	defer w.Flush()
+
+	fmt.Fprintln(w, "name\tuser\tsyst\tnice\tidle\twait\ttotal")
+
+	const pattern = "%s\t%5.2f\t%5.2f\t%5.2f\t%5.2f\t%5.2f\t%5.2f\n"
+	for _, u := range us {
+		fmt.Fprintf(w, pattern, u.Label, u.User, u.Syst, u.UserN, u.Idle, u.Wait, u.Total)
+	}
+	return nil
 }
 
 func runLastlog(cmd *cli.Command, args []string) error {
@@ -317,7 +347,6 @@ func runServe(cmd *cli.Command, args []string) error {
 		return err
 	}
 	http.Handle("/", rest.Version())
-	http.Handle("/stats/", rest.Stat())
 	http.Handle("/mount/", rest.Mount())
 	http.Handle("/net/", rest.Net())
 	http.Handle("/version/", rest.Version())

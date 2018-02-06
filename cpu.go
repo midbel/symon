@@ -3,50 +3,13 @@ package symon
 import (
 	"bufio"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 )
-
-type S struct {
-	Main    *Core     `json:"cpu"`
-	Cores   []*Core   `json:"cores"`
-	Boot    time.Time `json:"boot"`
-	Forks   int64     `json:"forks"`
-	Running int64     `json:"running"`
-	Waiting int64     `json:"waiting"`
-}
-
-func Stat() (*S, error) {
-	f, err := os.Open(filepath.Join(proc, "stat"))
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	stat := new(S)
-	for s := bufio.NewScanner(f); s.Scan(); {
-		fs := strings.SplitN(s.Text(), " ", 2)
-		switch v, vs := fs[0], strings.Fields(fs[1]); {
-		case strings.HasPrefix(v, "cpu") && v != "cpu":
-			stat.Cores = append(stat.Cores, readCPUTimes(v, vs))
-		case v == "cpu":
-			stat.Main = readCPUTimes(v, vs)
-		case v == "btime":
-			t, _ := strconv.ParseInt(vs[0], 10, 64)
-			stat.Boot = time.Unix(t, 0)
-		case v == "processes":
-			stat.Forks, _ = strconv.ParseInt(vs[0], 10, 64)
-		case v == "procs_running":
-			stat.Running, _ = strconv.ParseInt(vs[0], 10, 64)
-		case v == "procs_blocked":
-			stat.Waiting, _ = strconv.ParseInt(vs[0], 10, 64)
-		}
-	}
-	return stat, nil
-}
 
 func Load() []float64 {
 	f, err := os.Open(filepath.Join(proc, "loadavg"))
@@ -69,91 +32,113 @@ func Load() []float64 {
 	return vs
 }
 
-func TotalPercentCPU(e time.Duration) <-chan float64 {
-	q := make(chan float64)
-	go func() {
-		defer close(q)
-		f, err := os.Open(filepath.Join(proc, "stat"))
-		if err != nil {
-			return
-		}
-		defer f.Close()
-		r := bufio.NewReader(f)
+type Usage struct {
+	Label string  `json:"name"`
+	Total float64 `json:"total"`
 
-		var total, idle float64
-		for {
-			s, err := r.ReadString('\n')
-			if err != nil {
-				return
-			}
-			vs := strings.SplitN(s, " ", 2)
-			if vs[0] != "cpu" {
-				return
-			}
-			c := readCPUTimes(vs[0], strings.Fields(vs[1]))
-			i, t := c.IdleTime(), c.TotalTime()
-			idle, total = i-idle, t-total
-
-			<-time.After(e)
-			f.Seek(io.SeekStart, 0)
-			r.Reset(f)
-			q <- (1000 * (total - idle) / total) / 10
-
-			idle, total = i, t
-		}
-	}()
-	return q
-}
-
-type Core struct {
-	Label  string  `json:"label"`
 	User   float64 `json:"user"`
 	UserN  float64 `json:"usern"`
 	Syst   float64 `json:"system"`
 	Idle   float64 `json:"idle"`
 	Wait   float64 `json:"iowait"`
-	Irq    float64 `json:"irq"`
+	Hard   float64 `json:"hardirq"`
 	Soft   float64 `json:"softirq"`
 	Steal  float64 `json:"steal"`
 	Guest  float64 `json:"guest"`
 	GuestN float64 `json:"guestn"`
 }
 
-// func (c Core) Diff(p Core) (*Core, error) {
-// 	return nil, nil
-// }
-
-func (c Core) BusyTime() float64 {
-	return c.TotalTime() - c.IdleTime()
+type times struct {
+	Label  string
+	Values []float64
 }
 
-func (c Core) TotalTime() float64 {
-	n := c.User + c.UserN + c.Syst + c.Syst + c.Idle + c.Wait + c.Irq + c.Soft + c.Steal
-	return n - c.Guest - c.GuestN
-}
-
-func (c Core) IdleTime() float64 {
-	return c.Idle
-}
-
-func readCPUTimes(v string, vs []string) *Core {
-	c := &Core{Label: v}
-
-	cs := []*float64{
-		&c.User,
-		&c.UserN,
-		&c.Syst,
-		&c.Idle,
-		&c.Wait,
-		&c.Irq,
-		&c.Soft,
-		&c.Steal,
-		&c.Guest,
-		&c.GuestN,
+func (t times) TotalTime() float64 {
+	var v float64
+	for i := range t.Values {
+		v += t.Values[i]
 	}
-	for i := 0; i < len(vs); i++ {
+	return v
+}
+
+func (t times) IdleTime() float64 {
+	return t.Values[3]
+}
+
+func (t times) Usage(p *times) *Usage {
+	d := t.TotalTime() - p.TotalTime()
+	i := t.IdleTime() - p.IdleTime()
+
+	if d == 0 {
+		return &Usage{Label: t.Label}
+	}
+
+	calc := func(ix int) float64 {
+		v := 1000 * ((t.Values[ix] - p.Values[ix]) / d) / 10
+		if v < 0 || math.IsNaN(v) {
+			return 0
+		}
+		return v
+	}
+	g := 100 * (d - i) / d
+	if g < 0 || math.IsNaN(g) {
+		g = 0
+	}
+
+	return &Usage{
+		Label:  t.Label,
+		Total:  g,
+		User:   calc(0),
+		UserN:  calc(1),
+		Syst:   calc(2),
+		Idle:   calc(3),
+		Wait:   calc(4),
+		Hard:   calc(5),
+		Soft:   calc(6),
+		Steal:  calc(7),
+		Guest:  calc(8),
+		GuestN: calc(9),
+	}
+}
+
+func Percents(e time.Duration) (*Usage, []*Usage, error) {
+	f, err := os.Open(filepath.Join(proc, "stat"))
+	if err != nil {
+		return nil, nil, err
+	}
+	defer f.Close()
+
+	r := bufio.NewReader(f)
+	var cs []*times
+	for i := 0; i < 2; i++ {
+		for rs, err := r.ReadString('\n'); err == nil; rs, err = r.ReadString('\n') {
+			if !strings.HasPrefix(rs, "cpu") {
+				break
+			}
+			cs = append(cs, readCPUTimes(rs))
+		}
+		if _, err := f.Seek(0, io.SeekStart); err != nil {
+			return nil, nil, err
+		}
+		r.Reset(f)
+		if i < 1 {
+			time.Sleep(e)
+		}
+	}
+	us := make([]*Usage, len(cs)/2)
+	for i, j := 0, len(us); i < j; i++ {
+		us[i] = cs[i+j].Usage(cs[i])
+	}
+	return us[0], us[1:], nil
+}
+
+func readCPUTimes(s string) *times {
+	vs := strings.Fields(strings.TrimSpace(s))
+
+	cs := make([]float64, len(vs)-1)
+	for i, j := 1, 0; i < len(vs); i, j = i+1, j+1 {
 		v, _ := strconv.ParseFloat(vs[i], 64)
-		*(cs[i]) = v / Tick
+		cs[j] = v / Tick
 	}
-	return c
+	return &times{vs[0], cs}
 }
