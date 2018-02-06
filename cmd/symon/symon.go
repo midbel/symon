@@ -32,7 +32,7 @@ Use {{.Name}} [command] -h for more information about its usage.
 
 var commands = []*cli.Command{
 	{
-		Usage: "meminfo",
+		Usage: "free",
 		Short: "display amount of memory used in the system",
 		Run:   runMem,
 	},
@@ -71,16 +71,6 @@ var commands = []*cli.Command{
 		Usage: "netstat",
 		Short: "print information about active connections on a system",
 		Run:   runNetstat,
-	},
-	{
-		Usage: "status",
-		Short: "print statistics about system status from boot time",
-		Run:   runStat,
-	},
-	{
-		Usage: "load [-e] [-w]",
-		Short: "print information about cpu usage from boot time",
-		Run:   runPercent,
 	},
 	{
 		Usage: "process",
@@ -134,47 +124,6 @@ func runLastlog(cmd *cli.Command, args []string) error {
 		}
 		fmt.Fprintf(w, "%s\t%s\t%s\n", a.User(), a.Line, a.When)
 	}
-	return nil
-}
-
-func runPercent(cmd *cli.Command, args []string) error {
-	every := cmd.Flag.Duration("e", time.Second, "every")
-	watch := cmd.Flag.Bool("w", false, "watch")
-	if err := cmd.Flag.Parse(args); err != nil {
-		return err
-	}
-	for p := range symon.TotalPercentCPU(*every) {
-		fmt.Fprintf(os.Stdout, "CPU usage: %.2f%%", p)
-		if !*watch {
-			fmt.Fprintln(os.Stdout)
-			break
-		}
-		fmt.Fprint(os.Stdout, "\r")
-	}
-	return nil
-}
-
-func runStat(cmd *cli.Command, args []string) error {
-	if err := cmd.Flag.Parse(args); err != nil {
-		return err
-	}
-	const pattern = "%s\t%.2f\t%.2f\t%.2f\t%.2f\t%.2f\t\n"
-
-	s, err := symon.Stat()
-	if err != nil {
-		return err
-	}
-	w := tabwriter.NewWriter(os.Stdout, 12, 2, 2, ' ', 0)
-
-	cs := make([]*symon.Core, 0, 1+len(s.Cores))
-	cs = append(cs, s.Main)
-	cs = append(cs, s.Cores...)
-	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t\n", " ", "user", "syst", "nice", "idle", "wait")
-	for _, c := range cs {
-		fmt.Fprintf(w, pattern, "%"+c.Label, c.User, c.Syst, c.UserN, c.Idle, c.Wait)
-	}
-	w.Flush()
-
 	return nil
 }
 
