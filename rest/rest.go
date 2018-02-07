@@ -3,6 +3,7 @@ package rest
 import (
 	"encoding/json"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/midbel/symon"
@@ -68,24 +69,41 @@ func Process() http.Handler {
 }
 
 func Stats() http.Handler {
-	var ps []symon.Jiffy
-	f := func(r *http.Request) (interface{}, error) {
-		cs, err :=  symon.Times()
-		v := struct {
-			Times []symon.Jiffy `json:"times"`
-			Usages []symon.Usage `json:"usages,omitempty"`
-		} {
-			Times: cs,
-			Usages: make([]symon.Usage, len(cs)),
-		}
-		if len(ps) > 0 {
-			for i := 0; i < len(cs); i++ {
-				v.Usages[i] = *(cs[i].Usage(ps[i]))
+	var (
+		ps []symon.Jiffy
+		us []symon.Usage
+		mu sync.RWMutex
+	)
+	go func() {
+		for {
+			js, err := symon.Times()
+			if err != nil {
+				continue
 			}
+			if len(ps) > 0 {
+				mu.Lock()
+				vs := make([]symon.Usage, len(js))
+				for i := 0; i < len(js); i++ {
+					vs[i] = *(js[i].Usage(ps[i]))
+				}
+				us = vs
+				mu.Unlock()
+			}
+			ps = js
+			<-time.After(time.Second)
 		}
-		ps = cs
-
-		return v, err
+	}()
+	f := func(r *http.Request) (interface{}, error) {
+		mu.RLock()
+		defer mu.RUnlock()
+		v := struct {
+			Times  []symon.Jiffy `json:"times"`
+			Usages []symon.Usage `json:"usages,omitempty"`
+		}{
+			Times:  ps,
+			Usages: us,
+		}
+		return v, nil
 	}
 	return negociate(f)
 }
