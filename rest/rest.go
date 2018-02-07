@@ -75,7 +75,8 @@ func Stats() http.Handler {
 		mu sync.RWMutex
 	)
 	go func() {
-		for {
+		ts := time.Tick(time.Second)
+		for range ts {
 			js, err := symon.Times()
 			if err != nil {
 				continue
@@ -90,7 +91,6 @@ func Stats() http.Handler {
 				mu.Unlock()
 			}
 			ps = js
-			<-time.After(time.Second)
 		}
 	}()
 	f := func(r *http.Request) (interface{}, error) {
