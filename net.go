@@ -163,11 +163,16 @@ type Link struct {
 }
 
 type Interface struct {
-	Label string `json:"interface"`
-	SendP int64  `json:"tx-packets"`
-	SendB int64  `json:"tx-bytes"`
-	RecvP int64  `json:"rx-packets"`
-	RecvB int64  `json:"rx-bytes"`
+	Label string   `json:"interface"`
+	Up    bool     `json:"up"`
+	Mtu   int      `json:"mtu"`
+	Speed int      `json:"speed"`
+	Alias []string `json:"alias"`
+
+	SendP int64 `json:"tx-packets"`
+	SendB int64 `json:"tx-bytes"`
+	RecvP int64 `json:"rx-packets"`
+	RecvB int64 `json:"rx-bytes"`
 }
 
 func Interfaces() ([]Interface, error) {
