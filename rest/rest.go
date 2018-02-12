@@ -16,27 +16,6 @@ func Mount() http.Handler {
 	return negociate(f)
 }
 
-func Net() http.Handler {
-	f := func(r *http.Request) (interface{}, error) {
-		v := struct {
-			Routes     []symon.Route     `json:"routes"`
-			Interfaces []symon.Interface `json:"interfaces"`
-			Sockets    []symon.Socket    `json:"sockets"`
-		}{}
-		if vs, err := symon.Routes(); err == nil {
-			v.Routes = vs
-		}
-		if vs, err := symon.Netstat(); err == nil {
-			v.Sockets = vs
-		}
-		if vs, err := symon.Interfaces(); err == nil {
-			v.Interfaces = vs
-		}
-		return v, nil
-	}
-	return negociate(f)
-}
-
 func Version() http.Handler {
 	f := func(r *http.Request) (interface{}, error) {
 		u, _ := symon.Logins()
@@ -64,6 +43,26 @@ func Version() http.Handler {
 func Process() http.Handler {
 	f := func(r *http.Request) (interface{}, error) {
 		return symon.Process()
+	}
+	return negociate(f)
+}
+
+func Interfaces() http.Handler {
+	type ifi struct {
+		When time.Time `json:"dtstamp"`
+		symon.Interface
+	}
+	f := func(r *http.Request) (interface{}, error) {
+		is, err := symon.Interfaces()
+		if err != nil {
+			return nil, err
+		}
+		vs := make([]ifi, len(is))
+		n := time.Now()
+		for j, i := range is {
+			vs[j] = ifi{n, i}
+		}
+		return vs, nil
 	}
 	return negociate(f)
 }

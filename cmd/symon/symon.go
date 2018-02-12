@@ -348,7 +348,7 @@ func runServe(cmd *cli.Command, args []string) error {
 	}
 	http.Handle("/", rest.Version())
 	http.Handle("/mount/", rest.Mount())
-	http.Handle("/net/", rest.Net())
+	http.Handle("/interfaces/", rest.Interfaces())
 	http.Handle("/version/", rest.Version())
 	http.Handle("/meminfo/", rest.Free())
 	http.Handle("/users/", rest.Who())

@@ -32,7 +32,7 @@ func Load() []float64 {
 }
 
 type Jiffy struct {
-	Label string `json:"name"`
+	Label string    `json:"name"`
 	When  time.Time `json:"timestamp"`
 
 	User   float64 `json:"user"`
@@ -73,7 +73,7 @@ func (j Jiffy) Usage(p Jiffy) *Usage {
 
 	return &Usage{
 		Label:  j.Label,
-		When:  j.When,
+		When:   j.When,
 		Total:  calc(d, i),
 		User:   calc(j.User, p.User),
 		UserN:  calc(j.UserN, p.UserN),
@@ -121,9 +121,9 @@ func Times() ([]Jiffy, error) {
 }
 
 type Usage struct {
-	Label string  `json:"name"`
-	Total float64 `json:"total"`
-	When time.Time `json:"dtstamp"`
+	Label string    `json:"name"`
+	Total float64   `json:"total"`
+	When  time.Time `json:"dtstamp"`
 
 	User   float64 `json:"user"`
 	UserN  float64 `json:"usern"`
