@@ -219,8 +219,12 @@ func runLinks(cmd *cli.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	w := tabwriter.NewWriter(os.Stdout, 12, 2, 2, ' ', 0)
+	defer w.Flush()
+
+	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", "address", "type", "mac", "mask", "interface")
 	for _, l := range ls {
-		log.Printf("%+v", l)
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", l.Address, l.Type, l.Hardware, l.Mask, l.Interface)
 	}
 	return nil
 }
