@@ -170,6 +170,7 @@ type Interface struct {
 	Up    bool   `json:"up"`
 	Mtu   int    `json:"mtu"`
 	Type  string `json:"type"`
+	Addr  string `json:"addr"`
 
 	SendP int64 `json:"tx-packets"`
 	SendB int64 `json:"tx-bytes"`
@@ -205,6 +206,9 @@ func Interfaces() ([]Interface, error) {
 		if bs, err := ioutil.ReadFile(filepath.Join(p, i.Label, "type")); err == nil {
 			t, _ := strconv.Atoi(strings.TrimSpace(string(bs)))
 			i.Type = arpTypes[t]
+		}
+		if bs, err := ioutil.ReadFile(filepath.Join(p, i.Label, "address")); err == nil {
+			i.Addr = strings.TrimSpace(string(bs))
 		}
 
 		ds = append(ds, i)
