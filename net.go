@@ -77,6 +77,8 @@ const (
 	ARP_IEEE1394   = 24
 	ARP_EUI64      = 27
 	ARP_INFINIBAND = 32
+
+	ARP_LOOPBACK = 772
 )
 
 var arpTypes = map[int]string{
@@ -95,6 +97,7 @@ var arpTypes = map[int]string{
 	ARP_IEEE1394:   "IEEE1394",
 	ARP_EUI64:      "EUI64",
 	ARP_INFINIBAND: "INFINIBAND",
+	ARP_LOOPBACK:   "LOCAL",
 }
 
 type Socket struct {
@@ -163,11 +166,10 @@ type Link struct {
 }
 
 type Interface struct {
-	Label string   `json:"interface"`
-	Up    bool     `json:"up"`
-	Mtu   int      `json:"mtu"`
-	Speed int      `json:"speed"`
-	Alias []string `json:"alias"`
+	Label string `json:"interface"`
+	Up    bool   `json:"up"`
+	Mtu   int    `json:"mtu"`
+	Type  string `json:"type"`
 
 	SendP int64 `json:"tx-packets"`
 	SendB int64 `json:"tx-bytes"`
@@ -176,6 +178,7 @@ type Interface struct {
 }
 
 func Interfaces() ([]Interface, error) {
+	const p = "/sys/class/net/"
 	r := filepath.Join(proc, "net", "dev")
 	qs, err := readProcFile(r, 17, 2, ' ')
 	if err != nil {
@@ -192,6 +195,17 @@ func Interfaces() ([]Interface, error) {
 		i.SendP, _ = strconv.ParseInt(rs[2], 10, 64)
 		i.RecvB, _ = strconv.ParseInt(rs[9], 10, 64)
 		i.RecvP, _ = strconv.ParseInt(rs[10], 10, 64)
+
+		if bs, err := ioutil.ReadFile(filepath.Join(p, i.Label, "mtu")); err == nil {
+			i.Mtu, _ = strconv.Atoi(strings.TrimSpace(string(bs)))
+		}
+		if bs, err := ioutil.ReadFile(filepath.Join(p, i.Label, "carrier")); err == nil {
+			i.Up = strings.TrimSpace(string(bs)) == "1"
+		}
+		if bs, err := ioutil.ReadFile(filepath.Join(p, i.Label, "type")); err == nil {
+			t, _ := strconv.Atoi(strings.TrimSpace(string(bs)))
+			i.Type = arpTypes[t]
+		}
 
 		ds = append(ds, i)
 	}

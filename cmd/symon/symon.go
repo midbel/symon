@@ -268,45 +268,29 @@ func runMem(cmd *cli.Command, args []string) error {
 
 	size := symon.Kilo
 	cmd.Flag.Var(&size, "s", "unit size")
-	watch := cmd.Flag.Bool("w", false, "")
 	total := cmd.Flag.Bool("t", false, "")
-	every := cmd.Flag.Duration("e", time.Second, "")
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
 	}
 	w := tabwriter.NewWriter(os.Stdout, 9, 2, 4, ' ', 0)
+	defer w.Flush()
 
-	if *every <= 0 {
-		*every = time.Second
+	ms, err := symon.Free()
+	if err != nil {
+		return err
 	}
+	fmt.Fprintf(w, "%-6s\t%s\t%s\t%s\t%s\t%s\t%s\t\n", "dev", "total", "used", "free", "shared", "cached", "avail")
 
-	if *watch {
-		fmt.Fprint(os.Stdout, "\033[H\033[2J")
-	}
-	for {
-		ms, err := symon.Free()
-		if err != nil {
-			return err
-		}
-		fmt.Fprintf(w, "%-6s\t%s\t%s\t%s\t%s\t%s\t%s\t\n", "dev", "total", "used", "free", "shared", "cached", "avail")
-
-		var n symon.M
-		for _, m := range ms {
-			z := m.Scale(size)
-			fmt.Fprintf(w, pattern, z.Device, z.Total, z.Used(), z.Free, z.Share, z.Cache+z.Buffers, z.Available)
-			if *total {
-				n = n.Cumulate(z)
-			}
-		}
+	var n symon.M
+	for _, m := range ms {
+		z := m.Scale(size)
+		fmt.Fprintf(w, pattern, z.Device, z.Total, z.Used(), z.Free, z.Share, z.Cache+z.Buffers, z.Available)
 		if *total {
-			fmt.Fprintf(w, pattern, "total", n.Total, n.Used(), n.Free, n.Share, n.Cache+n.Buffers, n.Available)
+			n = n.Cumulate(z)
 		}
-		w.Flush()
-		if !*watch {
-			return nil
-		}
-		fmt.Fprint(os.Stdout, "\033[H\033[2J")
-		<-time.After(*every)
+	}
+	if *total {
+		fmt.Fprintf(w, pattern, "total", n.Total, n.Used(), n.Free, n.Share, n.Cache+n.Buffers, n.Available)
 	}
 	return nil
 }
