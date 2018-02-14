@@ -38,7 +38,7 @@ func (s *Size) Set(v string) error {
 	return nil
 }
 
-type M struct {
+type Memory struct {
 	Device    string
 	Total     float64
 	Free      float64
@@ -48,8 +48,8 @@ type M struct {
 	Share     float64
 }
 
-func (m M) Cumulate(o M) M {
-	return M{
+func (m Memory) Cumulate(o Memory) Memory {
+	return Memory{
 		Total:     m.Total + o.Total,
 		Free:      m.Free + o.Free,
 		Buffers:   m.Buffers + o.Buffers,
@@ -59,9 +59,9 @@ func (m M) Cumulate(o M) M {
 	}
 }
 
-func (m M) Scale(s Size) M {
+func (m Memory) Scale(s Size) Memory {
 	z := float64(s)
-	return M{
+	return Memory{
 		Device:    m.Device,
 		Total:     m.Total / z,
 		Free:      m.Free / z,
@@ -72,7 +72,7 @@ func (m M) Scale(s Size) M {
 	}
 }
 
-func (m M) MarshalJSON() ([]byte, error) {
+func (m Memory) MarshalJSON() ([]byte, error) {
 	v := struct {
 		Device string    `json:"device"`
 		Total  float64   `json:"total"`
@@ -89,13 +89,13 @@ func (m M) MarshalJSON() ([]byte, error) {
 	return json.Marshal(v)
 }
 
-func (m M) Used() float64 {
+func (m Memory) Used() float64 {
 	return m.Total - m.Free - m.Buffers - m.Cache
 }
 
 //Free gives the memory used by a system in a slice. The first element is the
 //RAM used, the second element is the swap usage.
-func Free() ([]M, error) {
+func Free() ([]Memory, error) {
 	f, err := os.Open(filepath.Join(proc, "meminfo"))
 	if err != nil {
 		return nil, err
@@ -105,12 +105,12 @@ func Free() ([]M, error) {
 	return <-meminfo(f), nil
 }
 
-func meminfo(r io.ReadSeeker) <-chan []M {
-	q := make(chan []M)
+func meminfo(r io.ReadSeeker) <-chan []Memory {
+	q := make(chan []Memory)
 	go func() {
 		defer close(q)
 		for {
-			var mem, swap M
+			var mem, swap Memory
 			for s := bufio.NewScanner(r); s.Scan(); {
 				ps := strings.FieldsFunc(s.Text(), func(r rune) bool {
 					return r == ':' || r == ' ' || r == '\t'
@@ -137,7 +137,7 @@ func meminfo(r io.ReadSeeker) <-chan []M {
 					mem.Share, _ = strconv.ParseFloat(v, 64)
 				}
 			}
-			q <- []M{mem, swap}
+			q <- []Memory{mem, swap}
 			r.Seek(0, io.SeekStart)
 		}
 	}()

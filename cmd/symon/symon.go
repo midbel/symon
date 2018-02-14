@@ -295,7 +295,7 @@ func runMem(cmd *cli.Command, args []string) error {
 	}
 	fmt.Fprintf(w, "%-6s\t%s\t%s\t%s\t%s\t%s\t%s\t\n", "dev", "total", "used", "free", "shared", "cached", "avail")
 
-	var n symon.M
+	var n symon.Memory
 	for _, m := range ms {
 		z := m.Scale(size)
 		fmt.Fprintf(w, pattern, z.Device, z.Total, z.Used(), z.Free, z.Share, z.Cache+z.Buffers, z.Available)
