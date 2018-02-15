@@ -182,6 +182,32 @@ func (i Interface) Stats() error {
 	return nil
 }
 
+type Addr struct {
+	Label string
+	net.IP
+}
+
+func Addrs() ([]Addr, error) {
+	r := filepath.Join(proc, "net", "if_inet6")
+	qs, err := readProcFile(r, 6, 0, ' ')
+	if err != nil {
+		return nil, err
+	}
+	var as []Addr
+	for rs := range qs {
+		bs, err := hex.DecodeString(rs[0])
+		if err != nil {
+			return nil, err
+		}
+		a := Addr{
+			Label: rs[5],
+			IP:    net.IP(bs),
+		}
+		as = append(as, a)
+	}
+	return as, nil
+}
+
 func Interfaces() ([]Interface, error) {
 	const p = "/sys/class/net/"
 	r := filepath.Join(proc, "net", "dev")
