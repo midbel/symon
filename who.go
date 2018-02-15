@@ -42,18 +42,18 @@ var records = []string{
 }
 
 //An user record as found in /var/log/lastlog
-type L struct {
+type Last struct {
 	When time.Time `json:"timestamp"`
 	Uid  int       `json:"uid"`
 	Line string    `json:"line"`
 	Host []byte    `json:"-"`
 }
 
-func (l L) Found() bool {
+func (l Last) Found() bool {
 	return !l.When.IsZero()
 }
 
-func (l L) User() string {
+func (l Last) User() string {
 	u, err := user.LookupId(strconv.Itoa(l.Uid))
 	if err != nil {
 		return fmt.Sprint(l.Uid)
@@ -62,7 +62,7 @@ func (l L) User() string {
 }
 
 //An user record as found in utmp and wtmp files
-type U struct {
+type Login struct {
 	Record  uint32
 	Pid     uint32
 	Device  string
@@ -73,7 +73,7 @@ type U struct {
 }
 
 //MarshalJSON Implements the json.Marshaler MarshalJSON method.
-func (u U) MarshalJSON() ([]byte, error) {
+func (l Login) MarshalJSON() ([]byte, error) {
 	v := struct {
 		Record string    `json:"record"`
 		Pid    uint32    `json:"pid"`
@@ -81,39 +81,39 @@ func (u U) MarshalJSON() ([]byte, error) {
 		Host   string    `json:"host"`
 		When   time.Time `json:"dtstamp"`
 	}{
-		Record: u.Type(),
-		Pid:    u.Pid,
-		User:   u.User,
-		Host:   u.Hostname(),
-		When:   u.Since(),
+		Record: l.Type(),
+		Pid:    l.Pid,
+		User:   l.User,
+		Host:   l.Hostname(),
+		When:   l.Since(),
 	}
 	return json.Marshal(v)
 }
 
-func (u U) Hostname() string {
-	if u.Remote() {
-		return u.Host
+func (l Login) Hostname() string {
+	if l.Remote() {
+		return l.Host
 	}
 	return Hostname
 }
 
-func (u U) Remote() bool {
-	return u.Host != ""
+func (l Login) Remote() bool {
+	return l.Host != ""
 }
 
-func (u U) Command() string {
-	return processName(strconv.Itoa(int(u.Pid)), false)
+func (l Login) Command() string {
+	return processName(strconv.Itoa(int(l.Pid)), false)
 }
 
-func (u U) Since() time.Time {
-	return time.Unix(int64(u.Seconds), 0)
+func (l Login) Since() time.Time {
+	return time.Unix(int64(l.Seconds), 0)
 }
 
-func (u U) Type() string {
-	if int(u.Record) >= len(records) {
+func (l Login) Type() string {
+	if int(l.Record) >= len(records) {
 		return "***"
 	}
-	return records[u.Record]
+	return records[l.Record]
 }
 
 func Logins() (int, int) {
@@ -137,7 +137,7 @@ func Logins() (int, int) {
 }
 
 //Last gives the users currently logged in on a system.
-func Last() ([]L, error) {
+func Lastlog() ([]Last, error) {
 	f, err := os.Open(lastFile)
 	if err != nil {
 		return nil, err
@@ -145,7 +145,7 @@ func Last() ([]L, error) {
 	defer f.Close()
 
 	var (
-		ls []L
+		ls []Last
 		wg sync.WaitGroup
 	)
 	for i, r := 0, bufio.NewReader(f); ; i++ {
@@ -168,17 +168,17 @@ func Last() ([]L, error) {
 
 //Wtmp gives the full list from the startup of a system of users logging. It uses
 ///var/log/wtmp.
-func Wtmp() ([]U, error) {
+func Wtmp() ([]Login, error) {
 	return scanWho(wtmpFile)
 }
 
 //Wtmp gives the full list from the startup of a system of users logging. It uses
 ///var/run/utmp.
-func Utmp() ([]U, error) {
+func Utmp() ([]Login, error) {
 	return scanWho(utmpFile)
 }
 
-func scanWho(path string) ([]U, error) {
+func scanWho(path string) ([]Login, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -192,9 +192,9 @@ func scanWho(path string) ([]U, error) {
 		return utmpRecordSize, bs[:utmpRecordSize], nil
 	})
 
-	var us []U
+	var us []Login
 	for s.Scan() {
-		var u U
+		var u Login
 		r := bytes.NewBuffer(s.Bytes())
 
 		binary.Read(r, binary.LittleEndian, &u.Record)
@@ -214,7 +214,7 @@ func scanWho(path string) ([]U, error) {
 	return us, nil
 }
 
-func lastlog(i int, r *bytes.Buffer) (*L, error) {
+func lastlog(i int, r *bytes.Buffer) (*Last, error) {
 	if _, err := user.LookupId(strconv.Itoa(i)); err != nil {
 		return nil, err
 	}
@@ -222,7 +222,7 @@ func lastlog(i int, r *bytes.Buffer) (*L, error) {
 	var s uint32
 	binary.Read(r, binary.LittleEndian, &s)
 
-	l := &L{
+	l := &Last{
 		Uid:  i,
 		Line: clean(r.Next(32)),
 		Host: bytes.Trim(r.Next(256), "\x00"),

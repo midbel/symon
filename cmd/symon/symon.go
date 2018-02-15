@@ -163,7 +163,7 @@ func runLastlog(cmd *cli.Command, args []string) error {
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
 	}
-	as, err := symon.Last()
+	as, err := symon.Lastlog()
 	if err != nil {
 		return err
 	}
@@ -341,7 +341,7 @@ func runWho(cmd *cli.Command, args []string) error {
 		return err
 	}
 	var (
-		us  []symon.U
+		us  []symon.Login
 		err error
 	)
 	if !*all {
