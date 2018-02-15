@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"text/tabwriter"
 	"text/template"
 	"time"
@@ -87,6 +88,11 @@ var commands = []*cli.Command{
 		Short: "print cpu usage percentage",
 		Run:   runPercents,
 	},
+	{
+		Usage: "mount",
+		Short: "print all filesystem mounted on the system",
+		Run:   runMounts,
+	},
 }
 
 func main() {
@@ -107,6 +113,25 @@ func main() {
 	if err := cli.Run(commands, usage, nil); err != nil {
 		log.Fatalln(err)
 	}
+}
+
+func runMounts(cmd *cli.Command, args []string) error {
+	if err := cmd.Flag.Parse(args); err != nil {
+		return err
+	}
+	fs, err := symon.Mount()
+	if err != nil {
+		return err
+	}
+
+	w := tabwriter.NewWriter(os.Stdout, 12, 2, 2, ' ', 0)
+	defer w.Flush()
+
+	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", "label", "point", "type", "check", "dump", "options")
+	for _, f := range fs {
+		fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%d\t%s\n", f.Label, f.Point, f.Type, f.Check, f.Dump, strings.Join(f.Options, ", "))
+	}
+	return nil
 }
 
 func runPercents(cmd *cli.Command, args []string) error {

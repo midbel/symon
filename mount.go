@@ -1,14 +1,12 @@
 package symon
 
 import (
-	"bufio"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 )
 
-type F struct {
+type Filesystem struct {
 	Label   string   `json:"label"`
 	Point   string   `json:"point"`
 	Type    string   `json:"type"`
@@ -18,37 +16,24 @@ type F struct {
 }
 
 //Mount gives the list of filesystem currently mounted on a system.
-func Mount() ([]F, error) {
-	f, err := os.Open(filepath.Join(proc, "mounts"))
+func Mount() ([]Filesystem, error) {
+	r := filepath.Join(proc, "mounts")
+	qs, err := readProcFile(r, 6, 0, ' ')
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
-	data := make([]F, 0, 16)
+	var fs []Filesystem
+	for rs := range qs {
+		f := Filesystem{
+			Label:   rs[0],
+			Point:   rs[1],
+			Type:    rs[2],
+			Options: strings.Split(rs[3], ","),
+		}
+		f.Dump, _ = strconv.Atoi(rs[4])
+		f.Check, _ = strconv.Atoi(rs[5])
 
-	s := bufio.NewScanner(f)
-	for s.Scan() {
-		if err := s.Err(); err != nil {
-			return nil, err
-		}
-		parts := strings.Fields(s.Text())
-		f := F{}
-		for i, field := range []interface{}{&f.Label, &f.Point, &f.Type, &f.Options, &f.Dump, &f.Check} {
-			switch field := field.(type) {
-			case *int:
-				*field, _ = strconv.Atoi(parts[i])
-			case *string:
-				*field = parts[i]
-			case *[]string:
-				values := strings.Split(parts[i], ",")
-				options := make([]string, len(values))
-				for i, v := range values {
-					options[i] = strings.TrimSpace(v)
-				}
-				*field = options
-			}
-		}
-		data = append(data, f)
+		fs = append(fs, f)
 	}
-	return data, nil
+	return fs, nil
 }
