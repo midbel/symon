@@ -178,6 +178,10 @@ type Interface struct {
 	RecvB int64 `json:"rx-bytes"`
 }
 
+func (i Interface) Stats() error {
+	return nil
+}
+
 func Interfaces() ([]Interface, error) {
 	const p = "/sys/class/net/"
 	r := filepath.Join(proc, "net", "dev")

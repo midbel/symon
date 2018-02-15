@@ -75,7 +75,7 @@ var commands = []*cli.Command{
 	{
 		Usage: "process",
 		Short: "print process currently running on a system",
-		Run:   runProcess,
+		Run:   runProcesses,
 	},
 	{
 		Usage: "lastlog",
@@ -157,7 +157,7 @@ func runLastlog(cmd *cli.Command, args []string) error {
 	return nil
 }
 
-func runProcess(cmd *cli.Command, args []string) error {
+func runProcesses(cmd *cli.Command, args []string) error {
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
 	}
@@ -165,7 +165,7 @@ func runProcess(cmd *cli.Command, args []string) error {
 	w := tabwriter.NewWriter(os.Stdout, 12, 2, 2, ' ', 0)
 	defer w.Flush()
 
-	ps, err := symon.Process()
+	ps, err := symon.Processes()
 	if err != nil {
 		return err
 	}
@@ -354,7 +354,7 @@ func runServe(cmd *cli.Command, args []string) error {
 	http.Handle("/version/", rest.Version())
 	http.Handle("/meminfo/", rest.Free())
 	http.Handle("/users/", rest.Who())
-	http.Handle("/process/", rest.Process())
+	http.Handle("/process/", rest.Processes())
 	http.Handle("/stats/", rest.Stats())
 
 	return http.ListenAndServe(*addr, nil)

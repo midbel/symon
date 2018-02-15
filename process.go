@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-type P struct {
+type Process struct {
 	Name   string        `json:"process"`
 	State  string        `json:"state"`
 	Uid    int           `json:"uid"`
@@ -25,7 +25,7 @@ type P struct {
 	Uptime time.Duration `json:"uptime"`
 }
 
-func (p P) MarshalJSON() ([]byte, error) {
+func (p Process) MarshalJSON() ([]byte, error) {
 	v := struct {
 		Name    string `json:"process"`
 		State   string `json:"state"`
@@ -46,7 +46,7 @@ func (p P) MarshalJSON() ([]byte, error) {
 	return json.Marshal(v)
 }
 
-func (p P) User() string {
+func (p Process) User() string {
 	id := strconv.Itoa(p.Uid)
 	if u, err := user.LookupId(id); err != nil {
 		return "***"
@@ -55,7 +55,7 @@ func (p P) User() string {
 	}
 }
 
-func (p P) Group() string {
+func (p Process) Group() string {
 	id := strconv.Itoa(p.Uid)
 	if g, err := user.LookupGroupId(id); err != nil {
 		return "***"
@@ -64,7 +64,7 @@ func (p P) Group() string {
 	}
 }
 
-func (p P) Device() string {
+func (p Process) Device() string {
 	if p, err := filepath.EvalSymlinks(filepath.Join(proc, strconv.Itoa(p.Pid), "fd", "0")); err != nil {
 		return ""
 	} else {
@@ -77,7 +77,7 @@ func (p P) Device() string {
 	}
 }
 
-func (p P) Command() string {
+func (p Process) Command() string {
 	return processName(strconv.Itoa(p.Pid), true)
 }
 
@@ -98,10 +98,10 @@ func PIDs() []int {
 	return ps
 }
 
-//Process returns the list of process currently exectued on a system. It tries
+//Processes returns the list of process currently exectued on a system. It tries
 //to copy the behavior of the `ps` command.
-func Process() ([]P, error) {
-	data := make([]P, 0, 100)
+func Processes() ([]Process, error) {
+	data := make([]Process, 0, 100)
 
 	var wg sync.WaitGroup
 	err := filepath.Walk(proc, func(path string, i os.FileInfo, err error) error {
@@ -124,7 +124,7 @@ func Process() ([]P, error) {
 		}
 		defer f.Close()
 
-		var p P
+		var p Process
 		for s := bufio.NewScanner(f); s.Scan(); {
 			parts := strings.Split(s.Text(), ":")
 			if len(parts) <= 1 {
@@ -148,7 +148,7 @@ func Process() ([]P, error) {
 			}
 		}
 		wg.Add(1)
-		go func(v *P) {
+		go func(v *Process) {
 			v.Core, v.Uptime = readProcessStats(v.Pid, 5, time.Millisecond*10)
 			data = append(data, *v)
 			wg.Done()

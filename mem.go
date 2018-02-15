@@ -38,6 +38,7 @@ func (s *Size) Set(v string) error {
 	return nil
 }
 
+//Memory represents the memory available on a system.
 type Memory struct {
 	Device    string
 	Total     float64
@@ -72,6 +73,7 @@ func (m Memory) Scale(s Size) Memory {
 	}
 }
 
+//MarshalJSON implements the json.Marshaler interface for Memory.
 func (m Memory) MarshalJSON() ([]byte, error) {
 	v := struct {
 		Device string    `json:"device"`
@@ -89,6 +91,7 @@ func (m Memory) MarshalJSON() ([]byte, error) {
 	return json.Marshal(v)
 }
 
+//Used gives the used memory by the system.
 func (m Memory) Used() float64 {
 	return m.Total - m.Free - m.Buffers - m.Cache
 }

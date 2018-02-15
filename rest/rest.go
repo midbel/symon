@@ -40,9 +40,9 @@ func Version() http.Handler {
 	return negociate(f)
 }
 
-func Process() http.Handler {
+func Processes() http.Handler {
 	f := func(r *http.Request) (interface{}, error) {
-		return symon.Process()
+		return symon.Processes()
 	}
 	return negociate(f)
 }
