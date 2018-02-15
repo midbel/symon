@@ -25,6 +25,7 @@ type Process struct {
 	Uptime time.Duration `json:"uptime"`
 }
 
+//MarshalJSON implements the json.Marshaler interface.
 func (p Process) MarshalJSON() ([]byte, error) {
 	v := struct {
 		Name    string `json:"process"`
@@ -46,6 +47,7 @@ func (p Process) MarshalJSON() ([]byte, error) {
 	return json.Marshal(v)
 }
 
+//User gives the username of owner of a process.
 func (p Process) User() string {
 	id := strconv.Itoa(p.Uid)
 	if u, err := user.LookupId(id); err != nil {
@@ -55,6 +57,7 @@ func (p Process) User() string {
 	}
 }
 
+//Group gives the group of owner of a process.
 func (p Process) Group() string {
 	id := strconv.Itoa(p.Uid)
 	if g, err := user.LookupGroupId(id); err != nil {
@@ -64,6 +67,7 @@ func (p Process) Group() string {
 	}
 }
 
+//Device returns the controlling terminal of the process.
 func (p Process) Device() string {
 	if p, err := filepath.EvalSymlinks(filepath.Join(proc, strconv.Itoa(p.Pid), "fd", "0")); err != nil {
 		return ""
@@ -77,6 +81,7 @@ func (p Process) Device() string {
 	}
 }
 
+//Command returns the command name (with its arguments) that has started the process.
 func (p Process) Command() string {
 	return processName(strconv.Itoa(p.Pid), true)
 }
@@ -98,8 +103,7 @@ func PIDs() []int {
 	return ps
 }
 
-//Processes returns the list of process currently exectued on a system. It tries
-//to copy the behavior of the `ps` command.
+//Processes returns the list of process exectued on a system.
 func Processes() ([]Process, error) {
 	data := make([]Process, 0, 100)
 
