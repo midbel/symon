@@ -1,10 +1,13 @@
 package symon
 
 import (
+	"io/ioutil"
 	"path/filepath"
 	"strconv"
 	"strings"
 )
+
+const blocksPath = "/sys/class/blocks/"
 
 type Filesystem struct {
 	Label   string   `json:"label"`
@@ -13,6 +16,7 @@ type Filesystem struct {
 	Options []string `json:"options"`
 	Dump    int      `json:"dump"`
 	Check   int      `json:"check"`
+	Size    int      `json:"size"`
 }
 
 //Mount gives the list of filesystem currently mounted on a system.
@@ -32,6 +36,11 @@ func Mount() ([]Filesystem, error) {
 		}
 		f.Dump, _ = strconv.Atoi(rs[4])
 		f.Check, _ = strconv.Atoi(rs[5])
+
+		if bs, err := ioutil.ReadFile(filepath.Join(blocksPath, f.Label, "size")); err == nil {
+			s := strings.TrimSpace(string(bs))
+			f.Size, _ = strconv.Atoi(s)
+		}
 
 		fs = append(fs, f)
 	}
