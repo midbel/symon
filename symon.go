@@ -35,6 +35,7 @@ func init() {
 }
 
 type Counter struct {
+	Label string
 	In  float64
 	Out float64
 	Err float64
