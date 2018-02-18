@@ -170,7 +170,8 @@ type Interface struct {
 	Up    bool
 	Mtu   int
 	Type  string
-	Addr  string
+	Mac   string
+	Addr  net.IP
 }
 
 //MarshalJSON implementd the json.Marshaler interface.
@@ -179,7 +180,7 @@ func (i Interface) MarshalJSON() ([]byte, error) {
 }
 
 func (i Interface) Stats() (Counter, Counter, error) {
-	var bs, ps Counter
+	bs, ps := Counter{Label: "bytes"}, Counter{Label: "packets"}
 
 	qs, err := readProcFile(filepath.Join(proc, "net", "dev"), 17, 2, ' ')
 	if err != nil {
@@ -226,6 +227,14 @@ func Addrs() ([]Addr, error) {
 
 func Interfaces() ([]Interface, error) {
 	const p = "/sys/class/net/"
+	as, err := Addrs()
+	if err != nil {
+		return nil, err
+	}
+	addrs := make(map[string]Addr)
+	for _, a := range as {
+		addrs[a.Label] = a
+	}
 	is, err := ioutil.ReadDir(p)
 	if err != nil {
 		return nil, err
@@ -233,6 +242,12 @@ func Interfaces() ([]Interface, error) {
 	ds := make([]Interface, 0, len(is))
 	for _, i := range is {
 		nic := Interface{Label: i.Name()}
+		a, ok := addrs[nic.Label]
+		if !ok {
+			continue
+		}
+		nic.Addr = a.IP
+
 		if bs, err := ioutil.ReadFile(filepath.Join(p, nic.Label, "mtu")); err == nil {
 			nic.Mtu, _ = strconv.Atoi(strings.TrimSpace(string(bs)))
 		}
@@ -244,7 +259,7 @@ func Interfaces() ([]Interface, error) {
 			nic.Type = arpTypes[t]
 		}
 		if bs, err := ioutil.ReadFile(filepath.Join(p, nic.Label, "address")); err == nil {
-			nic.Addr = strings.TrimSpace(string(bs))
+			nic.Mac = strings.TrimSpace(string(bs))
 		}
 		ds = append(ds, nic)
 	}
