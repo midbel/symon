@@ -178,8 +178,24 @@ func (i Interface) MarshalJSON() ([]byte, error) {
 	return nil, nil
 }
 
-func (i Interface) Stats() error {
-	return nil
+func (i Interface) Stats() (Counter, Counter, error) {
+	var bs, ps Counter
+
+	qs, err := readProcFile(filepath.Join(proc, "net", "dev"), 17, 2, ' ')
+	if err != nil {
+		return bs, ps, err
+	}
+	for rs := range qs {
+		if strings.HasPrefix(rs[0], i.Label) {
+			ps.In, _ = strconv.ParseFloat(rs[2], 64)
+			ps.Out, _ = strconv.ParseFloat(rs[10], 64)
+
+			bs.In, _ = strconv.ParseFloat(rs[1], 64)
+			bs.Out, _ = strconv.ParseFloat(rs[9], 64)
+			break
+		}
+	}
+	return bs, ps, nil
 }
 
 type Addr struct {

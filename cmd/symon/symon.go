@@ -223,7 +223,7 @@ func runRoutes(cmd *cli.Command, args []string) error {
 }
 
 func runInterfaces(cmd *cli.Command, args []string) error {
-	const pattern = "%s\t%d\t%s\t%s\t%s\t%.2f\t%.2f\n"
+	const pattern = "%s\t%d\t%s\t%s\t%s\n"
 	all := cmd.Flag.Bool("a", false, "all")
 	if err := cmd.Flag.Parse(args); err != nil {
 		return err
@@ -235,7 +235,7 @@ func runInterfaces(cmd *cli.Command, args []string) error {
 	w := tabwriter.NewWriter(os.Stdout, 12, 2, 2, ' ', 0)
 	defer w.Flush()
 
-	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", "label", "mtu", "status", "type", "address", "send", "recv")
+	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", "label", "mtu", "status", "type", "address")
 	for _, i := range fs {
 		if !*all && !i.Up {
 			continue
@@ -244,8 +244,7 @@ func runInterfaces(cmd *cli.Command, args []string) error {
 		if i.Up {
 			s = "UP"
 		}
-		bs, rs := float64(i.SendB)/(1024*1024), float64(i.RecvB)/(1024*1024)
-		fmt.Fprintf(w, pattern, i.Label, i.Mtu, s, i.Type, i.Addr, bs, rs)
+		fmt.Fprintf(w, pattern, i.Label, i.Mtu, s, i.Type, i.Addr)
 	}
 	return nil
 }

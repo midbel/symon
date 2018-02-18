@@ -34,6 +34,12 @@ func init() {
 	}
 }
 
+type Counter struct {
+	In  float64
+	Out float64
+	Err float64
+}
+
 func Uptime() (time.Time, time.Duration) {
 	f, err := os.Open(filepath.Join(proc, "uptime"))
 	if err != nil {
