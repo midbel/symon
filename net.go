@@ -166,16 +166,16 @@ type Link struct {
 }
 
 type Interface struct {
-	Label string `json:"interface"`
-	Up    bool   `json:"up"`
-	Mtu   int    `json:"mtu"`
-	Type  string `json:"type"`
-	Addr  string `json:"addr"`
+	Label string
+	Up    bool
+	Mtu   int
+	Type  string
+	Addr  string
+}
 
-	SendP int64 `json:"tx-packets"`
-	SendB int64 `json:"tx-bytes"`
-	RecvP int64 `json:"rx-packets"`
-	RecvB int64 `json:"rx-bytes"`
+//MarshalJSON implementd the json.Marshaler interface.
+func (i Interface) MarshalJSON() ([]byte, error) {
+	return nil, nil
 }
 
 func (i Interface) Stats() error {
@@ -210,38 +210,27 @@ func Addrs() ([]Addr, error) {
 
 func Interfaces() ([]Interface, error) {
 	const p = "/sys/class/net/"
-	r := filepath.Join(proc, "net", "dev")
-	qs, err := readProcFile(r, 17, 2, ' ')
+	is, err := ioutil.ReadDir(p)
 	if err != nil {
 		return nil, err
 	}
-
-	ds := make([]Interface, 0, 16)
-	for rs := range qs {
-		if ix := strings.Index(rs[0], ":"); ix >= 0 {
-			rs[0] = rs[0][:ix]
+	ds := make([]Interface, 0, len(is))
+	for _, i := range is {
+		nic := Interface{Label: i.Name()}
+		if bs, err := ioutil.ReadFile(filepath.Join(p, nic.Label, "mtu")); err == nil {
+			nic.Mtu, _ = strconv.Atoi(strings.TrimSpace(string(bs)))
 		}
-		i := Interface{Label: rs[0]}
-		i.SendB, _ = strconv.ParseInt(rs[1], 10, 64)
-		i.SendP, _ = strconv.ParseInt(rs[2], 10, 64)
-		i.RecvB, _ = strconv.ParseInt(rs[9], 10, 64)
-		i.RecvP, _ = strconv.ParseInt(rs[10], 10, 64)
-
-		if bs, err := ioutil.ReadFile(filepath.Join(p, i.Label, "mtu")); err == nil {
-			i.Mtu, _ = strconv.Atoi(strings.TrimSpace(string(bs)))
+		if bs, err := ioutil.ReadFile(filepath.Join(p, nic.Label, "carrier")); err == nil {
+			nic.Up = strings.TrimSpace(string(bs)) == "1"
 		}
-		if bs, err := ioutil.ReadFile(filepath.Join(p, i.Label, "carrier")); err == nil {
-			i.Up = strings.TrimSpace(string(bs)) == "1"
-		}
-		if bs, err := ioutil.ReadFile(filepath.Join(p, i.Label, "type")); err == nil {
+		if bs, err := ioutil.ReadFile(filepath.Join(p, nic.Label, "type")); err == nil {
 			t, _ := strconv.Atoi(strings.TrimSpace(string(bs)))
-			i.Type = arpTypes[t]
+			nic.Type = arpTypes[t]
 		}
-		if bs, err := ioutil.ReadFile(filepath.Join(p, i.Label, "address")); err == nil {
-			i.Addr = strings.TrimSpace(string(bs))
+		if bs, err := ioutil.ReadFile(filepath.Join(p, nic.Label, "address")); err == nil {
+			nic.Addr = strings.TrimSpace(string(bs))
 		}
-
-		ds = append(ds, i)
+		ds = append(ds, nic)
 	}
 	return ds, nil
 }
