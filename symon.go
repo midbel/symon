@@ -36,9 +36,9 @@ func init() {
 
 type Counter struct {
 	Label string
-	In  float64
-	Out float64
-	Err float64
+	In    float64
+	Out   float64
+	Err   float64
 }
 
 func Uptime() (time.Time, time.Duration) {
