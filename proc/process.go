@@ -11,13 +11,14 @@ import (
 	"strings"
 
 	"github.com/midbel/shlex"
+	"github.com/midbel/slices"
 )
 
 type ProcInfo struct {
 	Pid      int
 	Cmd      string
 	Args     []string
-	Status   string
+	Status   rune
 	User     string
 	Group    string
 	Nice     int
@@ -83,6 +84,8 @@ func readProcInfo(dir string) (ProcInfo, error) {
 		case "name":
 			info.Cmd = strings.TrimSpace(value)
 		case "state":
+			value = strings.TrimSpace(value)
+			info.Status = slices.Fst([]rune(value))
 		case "pid":
 			pid, err := strconv.Atoi(strings.TrimSpace(value))
 			if err != nil {
@@ -90,7 +93,7 @@ func readProcInfo(dir string) (ProcInfo, error) {
 			}
 			info.Pid = pid
 		case "uid":
-			uid, _, ok := strings.Cut(strings.TrimSpace(value), " ")
+			uid, _, ok := strings.Cut(strings.TrimSpace(value), "\t")
 			if !ok {
 				break
 			}
@@ -100,7 +103,7 @@ func readProcInfo(dir string) (ProcInfo, error) {
 			}
 			info.User = u.Username
 		case "gid":
-			gid, _, ok := strings.Cut(strings.TrimSpace(value), " ")
+			gid, _, ok := strings.Cut(strings.TrimSpace(value), "\t")
 			if !ok {
 				break
 			}

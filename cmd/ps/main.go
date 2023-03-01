@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"sort"
 
 	"github.com/midbel/symon/proc"
 )
@@ -13,7 +14,11 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+	sort.Slice(list, func(i, j int) bool {
+		return list[i].Pid < list[j].Pid
+	})
 	for _, i := range list {
-		fmt.Println(i.Pid, i.Cmd, i.Args)
+		fmt.Printf("%-8d %-16s %-16s %-4c %s", i.Pid, i.User, i.Group, i.Status, i.Cmd)
+		fmt.Println()
 	}
 }
