@@ -2,12 +2,15 @@ package proc
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"os"
 	"os/user"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/midbel/shlex"
 )
 
 type ProcInfo struct {
@@ -38,6 +41,9 @@ func Process() ([]ProcInfo, error) {
 		if err != nil {
 			return nil, err
 		}
+		if ifo.Args, err = readCmdline(filepath.Join(proc, f.Name())); err != nil {
+			return nil, err
+		}
 		list = append(list, ifo)
 	}
 	return list, nil
@@ -48,8 +54,14 @@ func readCmdline(dir string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	_ = str
-	return nil, nil
+	str = bytes.Trim(str, "\x00")
+	str = bytes.Map(func(r rune) rune {
+		if r == 0 {
+			return ' '
+		}
+		return r
+	}, str)
+	return shlex.Split(bytes.NewReader(str))
 }
 
 func readProcInfo(dir string) (ProcInfo, error) {

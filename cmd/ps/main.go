@@ -14,6 +14,6 @@ func main() {
 		os.Exit(1)
 	}
 	for _, i := range list {
-		fmt.Println(i)
+		fmt.Println(i.Pid, i.Cmd, i.Args)
 	}
 }
