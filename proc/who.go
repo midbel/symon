@@ -1,13 +1,16 @@
 package proc
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"net/netip"
 	"os"
+	"os/user"
+	"path/filepath"
+	"strconv"
 	"time"
 )
 
@@ -25,6 +28,28 @@ type Who struct {
 	Session int
 	When    time.Time
 	Addr    netip.Addr
+}
+
+func (w Who) Regular() bool {
+	if w.User == "" {
+		return false
+	}
+	_, err := user.Lookup(w.User)
+	return err == nil
+}
+
+func (w Who) Command() string {
+	var (
+		pid      = strconv.Itoa(w.Pid)
+		comm     = filepath.Join(proc, pid, "comm")
+		buf, err = os.ReadFile(comm)
+	)
+	if err != nil {
+		return ""
+	}
+	buf = bytes.Trim(buf, "\x00")
+	buf = bytes.TrimSpace(buf)
+	return string(buf)
 }
 
 func Current() ([]Who, error) {
@@ -51,17 +76,19 @@ func readWho(file string) ([]Who, error) {
 	defer r.Close()
 
 	var (
-		rs   = bufio.NewReader(r)
-		buf  = make([]byte, 384)
+		buf  = make([]byte, recordSize)
 		list []Who
 	)
 	for {
-		_, err := rs.Read(buf)
+		n, err := r.Read(buf)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				break
 			}
 			return nil, err
+		}
+		if n != recordSize {
+			return nil, fmt.Errorf("not enough bytes read for one record (%d != %d)", n, recordSize)
 		}
 		who, err := parseWho(bytes.NewReader(buf))
 		if err != nil {
